@@ -1,0 +1,333 @@
+dataset:
+  id: hangzhou-dojos-v1
+  title: 杭州道场与公益读书会地点
+  description: 用户手动核实的杭州读书会地点整理；供发现地图 POI 与附近查看功能使用。
+  updated_at: 2026-11-01
+  count: 9
+  poi_policy:
+    primary: provider_poi_id_or_provider_keyword_search
+    coordinate_required: false
+    note: 具备地图服务POI ID时优先直接引用；暂未存POI ID时，使用人工确认的名称与地址调用高德POI搜索，选中匹配结果后由地图服务返回绘制位置。经纬度作为缓存/回退信息，不是地点录入必填项。
+  coordinate_policy:
+    preferred_crs: GCJ-02
+    axis_order: "[longitude, latitude]"
+    note: 地址、场地与活动地点均由用户人工核实，作为权威导入信息。坐标状态描述本次地理编码所得点位精度，不代表对用户提供地点的质疑。坐标按地图服务实际坐标系保存；楼宇/园区代理坐标不代表具体房间入口。
+  privacy_policy:
+    note: 联系电话为用户提供的个人联系方式，默认为私有字段；住宅公寓房号仅作内部核对，不进入公开 POI 标题、地址或导航查询。
+    public_contact_default: false
+    residential_unit_publication: forbidden
+  records:
+    - id: hz-yijing-binjiang
+      name: 一境（滨江）
+      activity_title: 周六《道德经》公益读书会
+      district: 滨江区
+      address:
+        submitted: 杭州市滨江区缤纷街616号，高新区（滨江）党群服务中心2楼5室
+        normalized: 杭州市滨江区缤纷街616号，高新区（滨江）党群服务中心
+        unit: 2楼5室
+        notes: 用户已确认615号与616号对应同一房间/同一地点；本数据统一采用缤纷街616号。地点名称以高新区（滨江）党群服务中心为准。
+      fee: 免费
+      schedule: 每周六
+      poi:
+        name: 高新区（滨江）党群服务中心
+        level: building
+        coordinate: null
+        candidate_coordinate: [120.2185825, 30.216012]
+        candidate_coordinate_crs: unknown
+        precision: service_center_building
+        status: user_confirmed_place_map_query_ready
+        source_url: https://zjjcmspublic.oss-cn-hangzhou-zwynet-d01-a.internet.cloud.zj.gov.cn/jcms_files/jcms1/web3249/site/attach/0/9ac17e9451664e689cd65dea1c1bdc74.pdf
+        source_note: 环评报告列出的缤纷街615号自贸大厦项目坐标，按用户确认对应同一物理地点，作为服务中心建筑级候选点；来源未声明坐标系，实际绘制优先使用地图POI搜索返回的位置。
+        navigation_query: 杭州市滨江区缤纷街616号 高新区（滨江）党群服务中心
+        map_provider: amap
+        provider_poi_id: null
+        resolution_mode: provider_keyword_search
+        navigation_url: https://uri.amap.com/search?keyword=%E6%9D%AD%E5%B7%9E%E5%B8%82%E6%BB%A8%E6%B1%9F%E5%8C%BA%E7%BC%A4%E7%BA%B7%E8%A1%97616%E5%8F%B7%20%E9%AB%98%E6%96%B0%E5%8C%BA%EF%BC%88%E6%BB%A8%E6%B1%9F%EF%BC%89%E5%85%9A%E7%BE%A4%E6%9C%8D%E5%8A%A1%E4%B8%AD%E5%BF%83&city=330100&view=map&callnative=1
+      notes:
+        raw_extra: 注音续本（用户原始备注，含义待确认）
+      contacts: []
+
+    - id: hz-zizaijing-xihu
+      name: 自在境
+      activity_title: 公益《道德经》读书会
+      district: 西湖区
+      address:
+        submitted: 杭州市西湖区丰盛九玺4幢1301
+        normalized: 杭州市西湖区丰盛九玺
+        unit: 4幢1301
+        notes: 住宅楼栋及房号只保留在内部来源数据；公开地图只标小区/入口附近点位。
+      fee: 免费
+      schedule: null
+      poi:
+        name: 丰盛九玺
+        level: residential_compound
+        coordinate: [120.068277, 30.328859]
+        coordinate_crs: GCJ-02
+        precision: compound_approximate
+        status: user_confirmed_location_amap_compound_point
+        source_url: https://www.amap.com/place/B023B14FUH
+        source_note: 高德地图小区 POI 坐标，不能表示4幢入口或1301室。
+        navigation_query: 杭州市西湖区丰盛九玺
+        map_provider: amap
+        provider_poi_id: B023B14FUH
+        resolution_mode: provider_poi_id
+        navigation_url: https://uri.amap.com/search?keyword=%E6%9D%AD%E5%B7%9E%E5%B8%82%E8%A5%BF%E6%B9%96%E5%8C%BA%E4%B8%B0%E7%9B%9B%E4%B9%9D%E7%8E%BA&city=330100&view=map&callnative=1
+      contacts:
+        - name: 高槿
+          phone: "18668158168"
+          visibility: private
+          consent_confirmed_for_publication: false
+
+    - id: hz-dream-town-cangqian
+      name: 梦想小镇
+      activity_title: 周五《道德经》公益读书会
+      district: 余杭区
+      address:
+        submitted: 仓前街道文体活动中心4楼403室（仓兴街300号）
+        normalized: 杭州市余杭区仓兴街300号，仓前街道文体活动中心
+        unit: 4楼403室
+        access_hint: 4楼图书馆进门左转
+      fee: 免费
+      schedule: 每周五
+      poi:
+        name: 仓前街道文体活动中心
+        level: building
+        coordinate: null
+        coordinate_crs: GCJ-02
+        precision: unresolved
+        status: user_confirmed_location_map_search_ready_coordinate_optional
+        source_url: https://map.baidu.com/mobile/webapp/search/search/qt%3Ds%26wd%3D%E6%9D%AD%E5%B7%9E%E5%B8%82%E4%BD%99%E6%9D%AD%E5%8C%BA%E4%BB%93%E5%89%8D%E8%A1%97%E9%81%93/
+        source_note: 已查到地图中存在“仓前街道文体活动中心”POI，但现有检索结果未提供可验证坐标；需地图端确认准确楼宇入口。
+        navigation_query: 杭州市余杭区仓兴街300号 仓前街道文体活动中心
+        map_provider: amap
+        provider_poi_id: null
+        resolution_mode: provider_keyword_search
+        navigation_url: https://uri.amap.com/search?keyword=%E6%9D%AD%E5%B7%9E%E5%B8%82%E4%BD%99%E6%9D%AD%E5%8C%BA%E4%BB%93%E5%85%B4%E8%A1%97300%E5%8F%B7%20%E4%BB%93%E5%89%8D%E8%A1%97%E9%81%93%E6%96%87%E4%BD%93%E6%B4%BB%E5%8A%A8%E4%B8%AD%E5%BF%83&city=330100&view=map&callnative=1
+      notes:
+        raw_duplicate_line: 9仓前街道文体活动中心4楼403（仓兴街300号）
+      contacts: []
+
+    - id: hz-huanyicheng-pengbu
+      name: 环翼城
+      activity_title: 周三《道德经》公益读书会
+      district: 上城区
+      address:
+        submitted: 杭州市上城区彭埠环站东路环翼城1幢302室
+        normalized: 杭州市上城区鸿泰路128号环翼城1幢
+        unit: 302室
+        access_hint: 彭埠地铁站C口附近
+        notes: 公开资料显示环翼城位于鸿泰路128号；请活动方确认楼栋入口和门牌。
+      fee: 免费
+      schedule: 每周三
+      poi:
+        name: 环翼城
+        level: commercial_compound
+        coordinate: [120.222441, 30.293192]
+        coordinate_crs: GCJ-02
+        precision: compound_approximate
+        status: user_confirmed_location_compound_proxy
+        source_url: https://www.amap.com/place/B0I2THX2A3
+        source_note: 坐标来自环翼城内鸿泰路128号4幢商户 POI，作为园区代理点，非1幢入口坐标。
+        navigation_query: 杭州市上城区鸿泰路128号环翼城
+        map_provider: amap
+        provider_poi_id: null
+        resolution_mode: provider_keyword_search
+        navigation_url: https://uri.amap.com/search?keyword=%E6%9D%AD%E5%B7%9E%E5%B8%82%E4%B8%8A%E5%9F%8E%E5%8C%BA%E9%B8%BF%E6%B3%B0%E8%B7%AF128%E5%8F%B7%E7%8E%AF%E7%BF%BC%E5%9F%8E&city=330100&view=map&callnative=1
+      notes:
+        raw_extra: 用户地址尾缀“302室冬”中的“冬”疑似录入残留，未纳入地址。
+      contacts: []
+
+    - id: hz-zaohua-banshan
+      name: 灶画
+      activity_title: 公益《道德经》读书会
+      district: 拱墅区
+      address:
+        submitted: 杭州市拱墅区夏莲路106号大运河灶画民俗体验馆
+        normalized: 杭州市拱墅区半山街道夏莲路106号，大运河灶画体验馆
+      fee: 免费
+      schedule: null
+      poi:
+        name: 大运河灶画体验馆
+        level: venue
+        coordinate: null
+        coordinate_crs: GCJ-02
+        precision: unresolved
+        status: user_confirmed_location_map_search_ready_coordinate_optional
+        source_url: https://www.hzzx.gov.cn/content/2025-12/10/content_9141038.htm
+        source_note: 杭州政协网转载杭州日报报道确认体验馆位于夏莲路106号；未找到该场馆可核验坐标。
+        navigation_query: 杭州市拱墅区夏莲路106号 大运河灶画体验馆
+        map_provider: amap
+        provider_poi_id: null
+        resolution_mode: provider_keyword_search
+        navigation_url: https://uri.amap.com/search?keyword=%E6%9D%AD%E5%B7%9E%E5%B8%82%E6%8B%B1%E5%A2%85%E5%8C%BA%E5%A4%8F%E8%8E%B2%E8%B7%AF106%E5%8F%B7%20%E5%A4%A7%E8%BF%90%E6%B2%B3%E7%81%B6%E7%94%BB%E4%BD%93%E9%AA%8C%E9%A6%86&city=330100&view=map&callnative=1
+      contacts:
+        - name: 钥真
+          phone: "19957259413"
+          visibility: private
+          consent_confirmed_for_publication: false
+
+    - id: hz-qieman-d59
+      name: 且慢《道德经》读书会｜周三蝴蝶谷
+      activity_title: 周三读书会
+      district: 西湖区
+      address:
+        submitted: 杭州市西湖区曙光路59号D59蝴蝶谷B座5楼
+        normalized: 杭州市西湖区曙光路59号蝴蝶剧场B座（D59蝴蝶谷）
+        unit: 5楼
+        access_hint: D59蝴蝶谷位于蝴蝶剧场B座顶层空间；楼层需活动方确认。
+      fee: null
+      schedule: 每周三
+      poi:
+        name: D59蝴蝶谷（曙光路59号蝴蝶剧场B座）
+        level: building
+        coordinate: null
+        coordinate_crs: GCJ-02
+        precision: unresolved
+        status: user_confirmed_location_map_search_ready_coordinate_optional
+        source_url: https://hznews.hangzhou.com.cn/chengshi/content/2026-07/10/content_9252475.htm
+        source_note: 杭州网报道确认运营空间位于曙光路59号蝴蝶剧场顶层；未找到可核验坐标。
+        navigation_query: 杭州市西湖区曙光路59号 D59蝴蝶谷
+        map_provider: amap
+        provider_poi_id: null
+        resolution_mode: provider_keyword_search
+        navigation_url: https://uri.amap.com/search?keyword=%E6%9D%AD%E5%B7%9E%E5%B8%82%E8%A5%BF%E6%B9%96%E5%8C%BA%E6%9B%99%E5%85%89%E8%B7%AF59%E5%8F%B7%20D59%E8%9D%B4%E8%9D%B6%E8%B0%B7&city=330100&view=map&callnative=1
+      notes:
+        organization: 且慢·动态轻疗愈
+      contacts:
+        - name: null
+          phone: "13216186885"
+          visibility: private
+          consent_confirmed_for_publication: false
+        - name: null
+          phone: "13735456134"
+          visibility: private
+          consent_confirmed_for_publication: false
+
+    - id: hz-huierbang-binjiang
+      name: 惠尔邦道德经公益线下课
+      activity_title: 惠尔邦道德经公益线下课
+      district: 滨江区
+      address:
+        submitted: 杭州市滨江区大都会国际建材馆惠尔邦高定展厅
+        normalized: 杭州市滨江区江南大道1088号，第六空间大都会国际建材馆（惠尔邦高定展厅）
+        notes: 公开地图确认大都会国际建材馆地址；惠尔邦展厅具体楼层/铺位待确认。
+      fee: null
+      schedule: null
+      poi:
+        name: 第六空间大都会国际建材馆
+        level: commercial_building
+        coordinate: [120.188985, 30.196369]
+        coordinate_crs: GCJ-02
+        precision: building_approximate
+        status: user_confirmed_location_building_proxy
+        source_url: https://www.amap.com/place/B0H2PHPZCN
+        source_note: 高德地图馆内九牧店 POI 坐标用作建材馆代理点，不代表惠尔邦展厅具体位置。
+        navigation_query: 杭州市滨江区江南大道1088号 第六空间大都会国际建材馆
+        map_provider: amap
+        provider_poi_id: null
+        resolution_mode: provider_keyword_search
+        navigation_url: https://uri.amap.com/search?keyword=%E6%9D%AD%E5%B7%9E%E5%B8%82%E6%BB%A8%E6%B1%9F%E5%8C%BA%E6%B1%9F%E5%8D%97%E5%A4%A7%E9%81%931088%E5%8F%B7%20%E7%AC%AC%E5%85%AD%E7%A9%BA%E9%97%B4%E5%A4%A7%E9%83%BD%E4%BC%9A%E5%9B%BD%E9%99%85%E5%BB%BA%E6%9D%90%E9%A6%86&city=330100&view=map&callnative=1
+      notes:
+        participant_books: 惠尔邦高定为报名参加公益读书会的人员提供书本。
+      contacts:
+        - name: 周建秋
+          phone: "13957190571"
+          contact_channel: 微信同号
+          visibility: private
+          consent_confirmed_for_publication: false
+        - name: 章军
+          role: 现场负责人
+          phone: "18067967076"
+          visibility: private
+          consent_confirmed_for_publication: false
+
+    - id: hz-qingcheng-wuchang
+      name: 青橙十派-国学派-道德经诵读
+      activity_title: 道德经诵读
+      district: 余杭区
+      address:
+        submitted: 杭州余杭区-青橙国际街区驿站
+        normalized: 杭州市余杭区五常街道青橙国际街区驿站（青橙国际创新创业中心周边）
+        notes: 公开资料确认街区驿站属于五常街道青橙国际街区，但未找到门牌或可区分具体楼宇的地图位置。
+      fee: null
+      schedule: null
+      poi:
+        name: 青橙国际街区驿站
+        level: venue
+        coordinate: null
+        coordinate_crs: GCJ-02
+        precision: unresolved
+        status: user_confirmed_location_map_search_ready_coordinate_optional
+        source_url: https://tidenews.com.cn/news.html?id=3124274
+        source_note: 潮新闻资料确认驿站位于杭州五常街道青橙国际街区；无法从公开资料定位具体入口。
+        navigation_query: 杭州市余杭区五常街道青橙国际街区驿站
+        map_provider: amap
+        provider_poi_id: null
+        resolution_mode: provider_keyword_search
+        navigation_url: https://uri.amap.com/search?keyword=%E6%9D%AD%E5%B7%9E%E5%B8%82%E4%BD%99%E6%9D%AD%E5%8C%BA%E4%BA%94%E5%B8%B8%E8%A1%97%E9%81%93%E9%9D%92%E6%A9%99%E5%9B%BD%E9%99%85%E8%A1%97%E5%8C%BA%E9%A9%BF%E7%AB%99&city=330100&view=map&callnative=1
+      contacts: []
+
+    - id: hz-zhuocai-xiaoshan
+      name: 萧山·卓采
+      activity_title: 《道德经》公益读书会
+      district: 萧山区
+      address:
+        submitted: 杭州市萧山区融创住住公寓1921
+        normalized: 杭州市萧山区ITC归谷国际中心（融创住住人才公寓）
+        unit: 1921
+        notes: “1921”可能是房间号；住宅公寓房号不得作为公开POI地址。请活动方确认具体楼栋和公共会面入口。
+      fee: 公益随喜
+      schedule: null
+      poi:
+        name: ITC归谷国际中心（融创住住人才公寓）
+        level: commercial_residential_complex
+        coordinate: [120.25164, 30.23826]
+        coordinate_crs: WGS-84
+        precision: complex_approximate
+        status: user_confirmed_location_osm_complex_point
+        source_url: https://finance.sina.com.cn/stock/stockzmt/2021-06-22/doc-ikqciyzk1004056.shtml
+        source_note: 公开资料确认融创住住公寓项目在萧山钱江世纪城ITC归谷国际中心；该WGS-84候选点来自OpenStreetMap上的ITC归谷国际中心·钱江印建筑POI，作为综合体近似点，导航应落在公共综合体入口，不导向房间。
+        navigation_query: 杭州市萧山区ITC归谷国际中心 融创住住公寓
+        map_provider: amap
+        provider_poi_id: null
+        resolution_mode: provider_keyword_search
+        navigation_url: https://uri.amap.com/search?keyword=%E6%9D%AD%E5%B7%9E%E5%B8%82%E8%90%A7%E5%B1%B1%E5%8C%BAITC%E5%BD%92%E8%B0%B7%E5%9B%BD%E9%99%85%E4%B8%AD%E5%BF%83%20%E8%9E%8D%E5%88%9B%E4%BD%8F%E4%BD%8F%E5%85%AC%E5%AF%93&city=330100&view=map&callnative=1
+      notes:
+        participant_books: 卓采美学空间为报名参加公益读书会的人员免费提供书本。
+      contacts:
+        - name: 知熹
+          phone: "15921736365"
+          visibility: private
+          consent_confirmed_for_publication: false
+
+  source_register:
+    - id: src-binjiang-community-center
+      url: https://www.zjdj.com.cn/zt/zmdqfwzx/202106/t20210607_22637509.shtml
+      supports: 一境活动场地所在服务中心名称与缤纷街615号地址
+    - id: src-binjiang-center-coordinate
+      url: https://zjjcmspublic.oss-cn-hangzhou-zwynet-d01-a.internet.cloud.zj.gov.cn/jcms_files/jcms1/web3249/site/attach/0/9ac17e9451664e689cd65dea1c1bdc74.pdf
+      supports: 缤纷街615号自贸大厦项目的候选地理坐标（坐标系及与服务中心的点位关系待复核）
+    - id: src-fengsheng-amap
+      url: https://www.amap.com/place/B023B14FUH
+      supports: 丰盛九玺地图 POI 与小区坐标
+    - id: src-huanyicheng-amap-proxy
+      url: https://www.amap.com/place/B0I2THX2A3
+      supports: 环翼城园区内地址及代理 POI 坐标
+    - id: src-zaohua-venue
+      url: https://www.hzzx.gov.cn/content/2025-12/10/content_9141038.htm
+      supports: 大运河灶画体验馆名称和夏莲路106号地址
+    - id: src-d59-venue
+      url: https://hznews.hangzhou.com.cn/chengshi/content/2026-07/10/content_9252475.htm
+      supports: D59蝴蝶谷位于曙光路59号蝴蝶剧场顶层空间
+    - id: src-building-amap-proxy
+      url: https://www.amap.com/place/B0H2PHPZCN
+      supports: 江南大道1088号大都会国际建材馆及馆内代理 POI 坐标
+    - id: src-qingcheng-venue
+      url: https://tidenews.com.cn/news.html?id=3124274
+      supports: 青橙国际街区驿站位于五常街道青橙国际街区
+    - id: src-itc-residence
+      url: https://finance.sina.com.cn/stock/stockzmt/2021-06-22/doc-ikqciyzk1004056.shtml
+      supports: 融创住住公寓项目位于萧山ITC归谷国际中心
+    - id: src-itc-osm-complex-point
+      url: https://mapcarta.com/W605026704
+      supports: ITC归谷国际中心·钱江印建筑的WGS-84近似坐标，不代表公寓房间或具体入口
