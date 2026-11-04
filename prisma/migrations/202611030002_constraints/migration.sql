@@ -1,0 +1,18 @@
+ALTER TABLE "Chapter" ADD CONSTRAINT "Chapter_number_range" CHECK (number BETWEEN 1 AND 81);
+ALTER TABLE "Profile" ADD CONSTRAINT "Profile_avatar_range" CHECK (avatar BETWEEN 0 AND 9);
+ALTER TABLE "Account" ADD CONSTRAINT "Account_role_values" CHECK (role IN ('MEMBER', 'ADMIN'));
+ALTER TABLE "AuthIdentity" ADD CONSTRAINT "Identity_kind_values" CHECK (kind IN ('EMAIL', 'PHONE'));
+ALTER TABLE "Verification" ADD CONSTRAINT "Verification_purpose_values" CHECK (purpose IN ('REGISTER', 'RESET', 'RECOVERY'));
+ALTER TABLE "Verification" ADD CONSTRAINT "Verification_failures_range" CHECK (failures BETWEEN 0 AND 5);
+ALTER TABLE "ContentItem" ADD CONSTRAINT "Content_status_values" CHECK (status IN ('PUBLISHED', 'HIDDEN', 'DELETED'));
+ALTER TABLE "ContentItem" ADD CONSTRAINT "Content_body_nonempty" CHECK (length(trim(body)) > 0);
+ALTER TABLE "ContentItem" ADD CONSTRAINT "Content_views_nonnegative" CHECK ("viewsCount" >= 0);
+ALTER TABLE "ContentComment" ADD CONSTRAINT "Comment_status_values" CHECK (status IN ('PUBLISHED', 'DELETED'));
+ALTER TABLE "ContentComment" ADD CONSTRAINT "Comment_body_nonempty" CHECK (length(trim(body)) > 0);
+ALTER TABLE "GatheringSubmission" ADD CONSTRAINT "Gathering_status_values" CHECK (status IN ('PUBLISHED', 'HIDDEN', 'DELETED'));
+ALTER TABLE "GatheringSubmission" ADD CONSTRAINT "Gathering_reader_nonempty" CHECK (length(trim("leadReader")) > 0);
+ALTER TABLE "Dojo" ADD CONSTRAINT "Dojo_status_values" CHECK (status IN ('PUBLISHED', 'HIDDEN', 'DELETED'));
+ALTER TABLE "TemporaryPlace" ADD CONSTRAINT "TemporaryPlace_coordinate_range" CHECK (longitude BETWEEN 73 AND 136 AND latitude BETWEEN 3 AND 54);
+ALTER TABLE "MediaAsset" ADD CONSTRAINT "Media_status_values" CHECK (status IN ('PENDING', 'READY', 'HIDDEN', 'DELETED'));
+ALTER TABLE "MediaAsset" ADD CONSTRAINT "Media_size_range" CHECK (size > 0 AND size <= 20971520);
+ALTER TABLE "ContentView" ADD CONSTRAINT "ContentView_day_format" CHECK ("readDay" ~ '^\d{4}-\d{2}-\d{2}$');

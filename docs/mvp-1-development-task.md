@@ -1,6 +1,6 @@
 # MVP-1 连续开发任务指令
 
-- 状态：开工任务草案；本文不表示开发已开始
+- 状态：已于 2026-11-03 启动并完成首轮本地实现；实际进度与外部联调边界见 [开发记录](./development-progress.md)
 - 更新：2026-11-03
 - 业务决策：[MVP-1 编码前基线](./mvp-1-readiness-baseline.md)
 - 技术约束：[技术架构 Spec](./technical-architecture-spec.md)、[技术实施计划](./technical-implementation-plan.md)

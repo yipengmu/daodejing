@@ -1,0 +1,85 @@
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { ArrowRight, BookOpen, Heart, ImagePlus, MessageCircle, Pencil, X } from 'lucide-react';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useSession } from '../../app/context';
+import { Avatar } from '../../components/Avatar';
+import { Back, PageHead, ShareRow, Status } from '../../components/Shared';
+import { useResource } from '../../hooks';
+import { api, patch, post, formatDate } from '../../services/api';
+import type { Comment, Gathering, Place, Share } from '../../types';
+import { chapters, chapterTitle } from '../reading/Library';
+import { RequireLogin } from '../account/Pages';
+import { sessionState } from '../../services/storage';
+
+export function Channel() {
+  const number = Number(useParams().number); const [sort, setSort] = useState('reads'); const [page, setPage] = useState(0);
+  const resource = useResource<{ shares: Share[]; hasMore: boolean }>(`/shares?chapter=${number}&sort=${sort}&page=${page}`);
+  const list = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!list.current || !resource.data) return;
+    const observer = new IntersectionObserver(entries => { entries.filter(e => e.isIntersecting).forEach(entry => { const id = (entry.target as HTMLElement).dataset.shareId; if (id) void post(`/shares/${id}/exposure`).catch(() => {}); observer.unobserve(entry.target); }); }, { threshold: 0.5 });
+    list.current.querySelectorAll('[data-share-id]').forEach(item => observer.observe(item)); return () => observer.disconnect();
+  }, [resource.data]);
+  if (!chapters[number - 1]) return <div className="page-width"><h1>这一章不存在</h1><Link to="/">返回目录</Link></div>;
+  return <div className="page-width channel-page"><Back to={`/read/${number}`} label="回到原文"/><PageHead eyebrow={`道德经 · 第 ${String(number).padStart(2, '0')} 章`} title="本章分享"><Link className="button primary" to={`/compose?chapter=${number}`}><Pencil size={16}/>写下体会</Link></PageHead><Link className="chapter-context" to={`/read/${number}`}><BookOpen size={21}/><div><strong>{chapterTitle(number)}</strong><span>{chapters[number - 1].text.slice(0, 45)}…</span></div><ArrowRight size={18}/></Link><div className="feed-toolbar"><div className="tabs"><button className={sort === 'reads' ? 'active' : ''} onClick={() => { setSort('reads'); setPage(0); }}>阅读较多</button><button className={sort === 'latest' ? 'active' : ''} onClick={() => { setSort('latest'); setPage(0); }}>最新</button></div><span>每一种体会，都有自己的来处</span></div><p className="field-note">阅读较多按累计有效阅读数排序，不代表经义权威或内容质量。</p><div ref={list}><Status loading={resource.loading} error={resource.error} retry={resource.refresh} empty={resource.data && !resource.data.shares.length ? '本章还没有分享。也许，第一份体会就从你开始。' : undefined}>{resource.data?.shares.map(share => <ShareRow share={share} key={share.id}/>)}</Status></div><div className="pager">{page > 0 && <button className="button secondary" onClick={() => setPage(p => p - 1)}>上一页</button>}{resource.data?.hasMore && <button className="button secondary" onClick={() => setPage(p => p + 1)}>下一页</button>}</div></div>;
+}
+export function ShareDetail() {
+  const { id = '' } = useParams(); const { user } = useSession(); const navigate = useNavigate(); const location = useLocation();
+  const resource = useResource<Share & { readTicket: string | null }>(`/shares/${id}`);
+  const [commentPage, setCommentPage] = useState(0);
+  const commentResource = useResource<{ comments: Comment[]; hasMore: boolean }>(resource.data?.status === 'PUBLISHED' ? `/shares/${id}/comments?page=${commentPage}` : null);
+  const [comment, setComment] = useState(() => sessionState.getItem(`ddj-draft-comment-${id}`) || ''); const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [editing, setEditing] = useState(false); const [title, setTitle] = useState(''); const [body, setBody] = useState('');
+  const readSent = useRef(false); const key = useRef(crypto.randomUUID());
+  useEffect(() => { readSent.current = false; setError(''); setComment(sessionState.getItem(`ddj-draft-comment-${id}`) || ''); }, [id]);
+  const share = resource.data;
+  useEffect(() => { if (share) { setTitle(share.title); setBody(share.body); } }, [share?.id, share?.updatedAt]);
+  useEffect(() => {
+    if (!share?.readTicket || readSent.current) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => {
+      clearTimeout(timer);
+      if (document.visibilityState === 'visible' && !readSent.current) timer = setTimeout(() => { readSent.current = true; post<{ views: number }>(`/shares/${id}/view`, { ticket: share.readTicket }).then(result => resource.setData(old => old ? { ...old, views: result.views } : old)).catch(() => { readSent.current = false; }); }, 5100);
+    };
+    schedule(); document.addEventListener('visibilitychange', schedule); return () => { clearTimeout(timer); document.removeEventListener('visibilitychange', schedule); };
+  }, [id, share?.readTicket]);
+  function login() { sessionState.setItem(`ddj-draft-comment-${id}`, comment); navigate(`/auth?next=${encodeURIComponent(`/shares/${id}`)}`); }
+  async function like() { if (!user) return login(); setBusy(true); setError(''); try { const result = await api<{ liked: boolean; likes: number }>(`/shares/${id}/like`, { method: 'PUT', body: JSON.stringify({ liked: !share?.liked }) }); resource.setData(old => old ? { ...old, ...result } : old); } catch (e: any) { setError(e.message); } finally { setBusy(false); } }
+  async function sendComment(event: FormEvent) { event.preventDefault(); if (!user) return login(); setBusy(true); setError(''); try { await api(`/shares/${id}/comments`, { method: 'POST', headers: { 'Idempotency-Key': key.current }, body: JSON.stringify({ body: comment }) }); setComment(''); sessionState.removeItem(`ddj-draft-comment-${id}`); key.current = crypto.randomUUID(); commentResource.refresh(); resource.setData(old => old ? { ...old, comments: old.comments + 1 } : old); } catch (e: any) { setError(e.message); } finally { setBusy(false); } }
+  async function removeComment(commentId: string) { if (!window.confirm('删除这条评论？')) return; setError(''); try { await api(`/comments/${commentId}`, { method: 'DELETE' }); commentResource.refresh(); resource.refresh(); } catch (e: any) { setError(e.message); } }
+  async function changeStatus(status: string) { if (status === 'DELETED' && !window.confirm('删除后不再公开，也不能恢复。确定删除吗？')) return; setError(''); setBusy(true); try { await patch(`/shares/${id}`, { status }); if (status === 'DELETED') navigate('/me/content'); else { resource.refresh(); commentResource.refresh(); } } catch (e: any) { setError(e.message); } finally { setBusy(false); } }
+  async function saveEdit(e: FormEvent) { e.preventDefault(); setError(''); setBusy(true); try { await patch(`/shares/${id}`, { title, body }); setEditing(false); resource.refresh(); } catch (e: any) { setError(e.message); } finally { setBusy(false); } }
+  return <div className="page-width article-page"><Back to={(location.state as any)?.returnTo || (share ? `/chapters/${share.chapter}` : '/')} label="返回本章"/><Status loading={resource.loading} error={resource.error} retry={resource.refresh}>{share && <><Link className="eyebrow text-link" to={`/chapters/${share.chapter}`}>第 {share.chapter} 章 · 本章分享</Link><h1 className="article-title">{share.title || '读到这里的体会'}</h1><div className="byline"><Avatar preset={share.avatar} anonymous={share.anonymous}/><div><span>{share.name}</span><small>{formatDate(share.createdAt)}</small></div><span className="badge">{share.status === 'PUBLISHED' ? '公开分享' : '已隐藏'}</span></div>{editing ? <form onSubmit={saveEdit}><label>标题<input maxLength={120} value={title} onChange={e => setTitle(e.target.value)}/></label><label>正文<textarea aria-label="正文" rows={10} required maxLength={12000} value={body} onChange={e => setBody(e.target.value)}/></label><div className="action-row"><button className="button primary" disabled={busy}>保存</button><button type="button" className="text-button" onClick={() => setEditing(false)}>取消</button></div></form> : <div className="article-body">{share.body}</div>}
+    {share.status === 'PUBLISHED' && <div className="media-gallery">{share.media.map((media, index) => media.mime.startsWith('image/') ? <img key={media.id} src={`/api/media/${media.id}`} alt={`分享附图 ${index + 1}`} loading="lazy"/> : <audio key={media.id} controls preload="none" src={`/api/media/${media.id}`}>你的浏览器暂不支持音频播放。</audio>)}</div>}
+    {share.sourceUrl && <a className="source-link" href={share.sourceUrl} target="_blank" rel="noopener noreferrer">作者提供的外部来源 <ArrowRight size={15}/></a>}{share.gatheringId && <Link className="source-link" to={`/gatherings/${share.gatheringId}`}>关联的共读记录 <ArrowRight size={15}/></Link>}
+    <div className="article-actions"><span>有效阅读 {share.views}</span><button className={`button ${share.liked ? 'liked' : 'secondary'}`} aria-pressed={!!share.liked} disabled={busy || share.status !== 'PUBLISHED'} onClick={like}><Heart size={17} fill={share.liked ? 'currentColor' : 'none'}/>爱心 {share.likes}</button><span><MessageCircle size={16}/>{share.comments}</span></div>
+    {share.owned && <div className="owner-actions"><button className="text-button" onClick={() => setEditing(true)}>编辑</button><button className="text-button" disabled={busy} onClick={() => changeStatus(share.status === 'PUBLISHED' ? 'HIDDEN' : 'PUBLISHED')}>{share.status === 'PUBLISHED' ? '隐藏分享' : '重新公开'}</button><button className="text-button danger" disabled={busy} onClick={() => changeStatus('DELETED')}>删除</button></div>}
+    {share.status === 'PUBLISHED' && <section className="comments-section"><h2>围绕这一章的交流</h2><p className="field-note">评论属于个人表达，请友善交流。</p><Status loading={commentResource.loading} error={commentResource.error} retry={commentResource.refresh}>{commentResource.data?.comments.map(row => <article className="comment" key={row.id}><Avatar preset={row.avatar} size={32}/><div><strong>{row.name}</strong><small>{formatDate(row.createdAt)}</small><p>{row.body}</p>{row.owned && <button className="text-button muted" onClick={() => removeComment(row.id)}>删除</button>}</div></article>)}</Status>{commentResource.data?.hasMore && <button className="text-button" onClick={() => setCommentPage(p => p + 1)}>下一页评论</button>}{commentPage > 0 && <button className="text-button" onClick={() => setCommentPage(p => p - 1)}>上一页评论</button>}<form onSubmit={sendComment}><label>写下你的评论<textarea rows={3} maxLength={2000} required value={comment} onChange={e => setComment(e.target.value)} placeholder="分享一点你的理解…"/></label><button className="button primary" disabled={busy || !comment.trim()}>{user ? '发布评论' : '登录后发布评论'}</button></form></section>}
+    </>}</Status>{error && <p role="alert" className="form-error">{error}</p>}</div>;
+}
+export function Compose() { return <RequireLogin><ComposeBody/></RequireLogin>; }
+function ComposeBody() {
+  const [params] = useSearchParams(); const { user } = useSession(); const navigate = useNavigate();
+  const [initial] = useState(() => { try { return JSON.parse(sessionState.getItem(`ddj-draft-compose:${user!.id}`) || '{}'); } catch { return {}; } });
+  const [chapter, setChapter] = useState(Number(params.get('chapter')) || initial.chapter || 1); const [title, setTitle] = useState(initial.title || ''); const [body, setBody] = useState(initial.body || ''); const [anonymous, setAnonymous] = useState(false); const [publicName, setPublicName] = useState(user!.name); const [sourceUrl, setSourceUrl] = useState(''); const [gatheringId, setGatheringId] = useState('');
+  const [acknowledge, setAcknowledge] = useState(false); const [media, setMedia] = useState<{ id: string; mime: string }[]>([]); const [busy, setBusy] = useState(false); const [uploading, setUploading] = useState(false); const [error, setError] = useState(''); const key = useRef(crypto.randomUUID());
+  const gatherings = useResource<{ gatherings: Gathering[] }>('/me/gatherings');
+  useEffect(() => { sessionState.setItem(`ddj-draft-compose:${user!.id}`, JSON.stringify({ chapter, title, body })); }, [chapter, title, body]);
+  async function upload(files: FileList | null) {
+    if (!files) return; setError(''); setUploading(true);
+    try { if (media.length + files.length > 6) throw new Error('每篇分享最多添加六个附件。');
+      for (const file of Array.from(files)) {
+        const mime = file.type === 'audio/x-wav' ? 'audio/wav' : file.type || (/\.mp3$/i.test(file.name) ? 'audio/mpeg' : '');
+        const result = await post<{ id: string; uploadUrl: string }>('/media/sign-upload', { mime, size: file.size });
+        const response = await fetch(result.uploadUrl, { method: 'PUT', headers: { 'Content-Type': mime }, body: file, credentials: result.uploadUrl.startsWith('/') ? 'same-origin' : 'omit' });
+        if (!response.ok) throw new Error('上传失败，请重试。');
+        await post(`/media/${result.id}/complete`); setMedia(items => [...items, { id: result.id, mime }]);
+      }
+    } catch (e: any) { setError(e.message); } finally { setUploading(false); }
+  }
+  async function submit(e: FormEvent) { e.preventDefault(); setError(''); setBusy(true); try { const result = await api<{ id: string }>('/shares', { method: 'POST', headers: { 'Idempotency-Key': key.current }, body: JSON.stringify({ chapter, title, body, anonymous, publicName, sourceUrl, gatheringId: gatheringId || null, mediaIds: media.map(m => m.id), acknowledge }) }); sessionState.removeItem(`ddj-draft-compose:${user!.id}`); navigate(`/shares/${result.id}`, { replace: true }); } catch (e: any) { setError(e.message); } finally { setBusy(false); } }
+  return <div className="page-width form-page"><Back to={`/chapters/${chapter}`} label="回到本章频道"/><PageHead eyebrow="把读到的，带回生活" title="写下你的体会"/><form onSubmit={submit}><label>所属章节<select value={chapter} onChange={e => { setChapter(Number(e.target.value)); setGatheringId(''); }}>{chapters.map(c => <option key={c.number} value={c.number}>第 {c.number} 章 · {chapterTitle(c.number)}</option>)}</select></label><label>标题（可选）<input maxLength={120} placeholder="为这份体会起一个名字" value={title} onChange={e => setTitle(e.target.value)}/></label><label>正文<textarea aria-label="正文" required rows={10} maxLength={12000} placeholder="可以是一段体会、一句金句，或一个发生在生活里的故事…" value={body} onChange={e => setBody(e.target.value)}/><small>{body.length} / 12000</small></label>
+    <div className="upload-area"><label className="button secondary upload-label"><ImagePlus size={18}/>{uploading ? '正在上传并检查…' : '添加图片 / 音频（可选）'}<input type="file" multiple accept="image/jpeg,image/png,image/webp,audio/mpeg,audio/wav,.mp3,.wav" disabled={uploading || media.length >= 6} onChange={e => { void upload(e.target.files); e.target.value = ''; }}/></label><p className="field-note">图片每张不超过 8 MB；MP3 / WAV 不超过 20 MB、10 分钟。最多六个附件。</p><div className="upload-previews">{media.map((m, index) => <div key={m.id}>{m.mime.startsWith('image/') ? <img src={`/api/media/${m.id}`} alt={`待发布附图 ${index + 1}`}/> : <audio controls src={`/api/media/${m.id}`}/>}<button type="button" className="icon-button" aria-label={`移除附件 ${index + 1}`} onClick={() => setMedia(items => items.filter(value => value.id !== m.id))}><X size={16}/></button></div>)}</div></div>
+    <label>来源链接（可选）<input type="url" value={sourceUrl} onChange={e => setSourceUrl(e.target.value)} placeholder="https://"/></label><label>关联本人共读记录（可选）<select value={gatheringId} onChange={e => setGatheringId(e.target.value)}><option value="">不关联</option>{gatherings.data?.gatherings.filter(g => g.chapter === chapter && g.status === 'PUBLISHED').map(g => <option key={g.id} value={g.id}>{g.place?.name || '无地点共读'} · {formatDate(g.submittedAt)}</option>)}</select></label>
+    <fieldset><legend>作者如何显示</legend><label className="check-label"><input type="radio" name="identity" checked={!anonymous} onChange={() => setAnonymous(false)}/>使用公开昵称</label>{!anonymous && <input aria-label="公开昵称" required maxLength={80} value={publicName} onChange={e => setPublicName(e.target.value)}/>}<label className="check-label"><input type="radio" name="identity" checked={anonymous} onChange={() => setAnonymous(true)}/>匿名分享</label><p className="field-note">匿名会遮蔽公开昵称和头像，账号仍保留作者归属。声音、图片和正文中的信息仍可能让他人认出你。</p></fieldset>
+    <label className="check-label publication-check"><input type="checkbox" required checked={acknowledge} onChange={e => setAcknowledge(e.target.checked)}/><span>我了解内容和附件发布后将公开；已确认涉及他人的素材可以公开。发布后可隐藏或删除自己的内容。</span></label>{error && <p className="form-error" role="alert">{error}</p>}<button className="button primary full-width" disabled={busy || uploading || !acknowledge || !body.trim()}>{busy ? '正在发布…' : '发布到本章频道'}<ArrowRight size={17}/></button></form></div>;
+}

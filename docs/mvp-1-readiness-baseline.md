@@ -6,7 +6,7 @@
 - 产品定义权威来源：[Proposal Spec](./proposal-spec.md)、[页面流程 Spec](./product-page-flow-spec.md)、[设计指导 Spec](./design-guidelines-spec.md)
 - 技术实现权威来源：[技术架构 Spec](./technical-architecture-spec.md)、[技术实施计划](./technical-implementation-plan.md)
 - 连续开发任务指令：[MVP-1 开发任务](./mvp-1-development-task.md)
-- 数据库设计状态：尚未启动；[数据库设计预研稿](./database-schema-spec.md)为未批准草案，不构成实现依据
+- 数据库设计状态：2026-11-03 已独立完成 [MVP-1 实施设计](./mvp-1-database-design.md)及基线对照，已建立 schema/迁移并通过本地数据库测试；[历史预研稿](./database-schema-spec.md)仍为未批准草案，不构成实现依据
 
 ## 1. MVP 阶段边界
 
@@ -33,10 +33,12 @@ MVP-1 必须保持可匿名阅读；发布分享、评论、爱心、共读记�
 | 依赖资源 | 经文、首批地址、家谱项目短信/邮件及 OSS/地图方案由用户已提供/验证 | 技术实施计划 | 不把这些重复列为产品阻塞项；编码 Phase 0 做只读盘点与独立凭据核对 |
 | 技术决策优先级 | 产品 Spec 定义功能、业务流程、产品定位；技术架构/实施 Spec 约束技术实现；冲突先修正文档，不靠实现者猜测 | 本文 | 已确认 |
 | 原型与业务规则 | 业务规则以最新基线为准；原型用于页面结构与交互参考。第一批工作更新原型中的地点、排序、媒体和来源表述 | 本文 | 已确认 |
-| 数据库设计 | 当前尚未启动正式数据库设计；现有草案不作为 schema 依据 | 本文 | MVP 范围基线确认后另开设计切片并评审 |
+| 数据库设计 | 已按当前基线独立完成正式实施设计；历史草案不作为 schema 依据 | [实施设计](./mvp-1-database-design.md) | 已建立 schema/迁移并完成本地迁移、约束与事务验证；云端迁移待独立环境配置 |
 | Agent Harness 命名 | 使用 Agent Harness；不使用 HANLIS | Agent Harness 架构/演进 Spec | 已修正文档命名 |
 
 ## 3. 开工检查清单
+
+以下保留为开工基线检查项；2026-11-03 的实际实现、验收证据与外部依赖状态统一记录在[开发记录](./development-progress.md)。
 
 ### 3.1 产品与 Spec
 

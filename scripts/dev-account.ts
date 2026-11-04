@@ -1,0 +1,10 @@
+import { setupRuntime } from './runtime';
+await setupRuntime();
+if (process.env.NODE_ENV === 'production' || process.env.LOCAL_DATABASE !== 'true') throw new Error('开发账号只能在本机数据库中创建');
+const { prisma, closeDatabase } = await import('../lib/db');
+const { hashPassword, digest } = await import('@daodejing/auth-kit');
+const email = 'reader@example.test';
+const account = await prisma.account.create({ data: { passwordHash: await hashPassword('ReadTogether!2026'), profile: { create: { displayName: '本地共读者', avatar: 0 } }, identities: { create: { kind: 'EMAIL', lookupHash: digest(process.env.IDENTITY_HMAC_SECRET!, `EMAIL:${email}`), value: email } } } }).catch(async error => { if (error.code === 'P2002') return null; throw error; });
+console.log(account ? '本地开发账号已创建。' : '本地开发账号已存在。');
+console.log('仅本地使用：reader@example.test / ReadTogether!2026');
+await closeDatabase();

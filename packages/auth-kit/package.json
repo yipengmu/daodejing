@@ -1,0 +1,1 @@
+{"name":"@daodejing/auth-kit","version":"1.0.0","type":"module","private":true,"exports":"./src/index.ts","dependencies":{"bcryptjs":"^3.0.3","jsonwebtoken":"^9.0.2"}}

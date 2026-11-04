@@ -1,0 +1,303 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+model Account {
+  id                    String   @id @default(cuid())
+  passwordHash          String
+  role                  String   @default("MEMBER")
+  active                Boolean  @default(true)
+  authVersion           Int      @default(0)
+  lastPhoneResetAt      DateTime?
+  createdAt             DateTime @default(now())
+  profile               Profile?
+  identities            AuthIdentity[]
+  shares                ContentItem[]
+  comments              ContentComment[]
+  likes                 ContentLike[]
+  dojos                 Dojo[]
+  gatherings            GatheringSubmission[] @relation("Submitter")
+  ledGatherings         GatheringSubmission[] @relation("LeadReader")
+  media                 MediaAsset[]
+  feedback              Feedback[]
+}
+
+model Profile {
+  accountId    String  @id
+  displayName  String  @db.VarChar(80)
+  avatar       Int     @default(0)
+  account      Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  updatedAt    DateTime @updatedAt
+  @@index([displayName])
+}
+
+model AuthIdentity {
+  id          String   @id @default(cuid())
+  accountId   String
+  kind        String
+  lookupHash  String
+  value       String
+  recovery    Boolean  @default(false)
+  verifiedAt  DateTime @default(now())
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  @@unique([kind, lookupHash])
+  @@index([accountId])
+}
+
+model Verification {
+  id           String   @id @default(cuid())
+  kind         String
+  purpose      String
+  lookupHash   String
+  accountId    String?
+  codeHash     String?
+  providerRef  String?
+  provider     String
+  failures     Int      @default(0)
+  expiresAt    DateTime
+  consumedAt   DateTime?
+  createdAt    DateTime @default(now())
+  @@index([lookupHash, purpose, createdAt])
+}
+
+model RateBucket {
+  key       String   @id
+  count     Int      @default(1)
+  expiresAt DateTime
+  @@index([expiresAt])
+}
+
+model Edition {
+  id        String @id
+  title     String
+  label     String
+  source    Json
+  active    Boolean @default(true)
+  texts     ChapterText[]
+}
+
+model Chapter {
+  number      Int @id
+  title       String
+  section     String
+  texts       ChapterText[]
+  channel     ChapterChannel?
+  shares      ContentItem[]
+  gatherings  GatheringSubmission[]
+}
+
+model ChapterText {
+  chapterNumber Int
+  editionId     String
+  text          String
+  explanation   String?
+  source        Json
+  chapter       Chapter @relation(fields: [chapterNumber], references: [number], onDelete: Restrict)
+  edition       Edition @relation(fields: [editionId], references: [id], onDelete: Restrict)
+  @@id([chapterNumber, editionId])
+  @@index([editionId])
+}
+
+model ChapterChannel {
+  id            String @id
+  chapterNumber Int @unique
+  chapter       Chapter @relation(fields: [chapterNumber], references: [number], onDelete: Restrict)
+}
+
+model Dojo {
+  id            String @id @default(cuid())
+  ownerId       String?
+  name          String @db.VarChar(160)
+  province      String @default("浙江省")
+  city          String @default("杭州市")
+  district      String @default("")
+  address       String
+  description   String @default("")
+  schedule      String?
+  welcome       Boolean @default(true)
+  publicContact String?
+  signupUrl     String?
+  longitude     Float?
+  latitude      Float?
+  crs           String @default("GCJ-02")
+  poiId         String?
+  poiName       String?
+  poiConfirmed  Boolean @default(false)
+  navigationQuery String?
+  sourcePrivate Json?
+  status        String @default("PUBLISHED")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  owner         Account? @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  gatherings    GatheringSubmission[]
+  shares        ContentItem[]
+  @@index([status, province, city])
+  @@index([ownerId, updatedAt])
+}
+
+model GatheringSubmission {
+  id            String @id @default(cuid())
+  submitterId   String
+  chapterNumber Int
+  leadReader    String @db.VarChar(160)
+  leadReaderId  String?
+  dojoId        String?
+  status        String @default("PUBLISHED")
+  submittedAt   DateTime @default(now())
+  submitter     Account @relation("Submitter", fields: [submitterId], references: [id], onDelete: Restrict)
+  leadAccount   Account? @relation("LeadReader", fields: [leadReaderId], references: [id], onDelete: Restrict)
+  chapter       Chapter @relation(fields: [chapterNumber], references: [number], onDelete: Restrict)
+  dojo          Dojo? @relation(fields: [dojoId], references: [id], onDelete: Restrict)
+  temporaryPlace TemporaryPlace?
+  shares        ContentItem[]
+  @@index([chapterNumber, status, submittedAt])
+  @@index([submitterId, submittedAt])
+  @@index([dojoId])
+  @@index([leadReaderId])
+}
+
+model TemporaryPlace {
+  id            String @id @default(cuid())
+  gatheringId   String @unique
+  name          String
+  province      String
+  city          String
+  district      String @default("")
+  address       String
+  longitude     Float
+  latitude      Float
+  crs           String @default("GCJ-02")
+  poiId         String
+  updatedAt     DateTime @updatedAt
+  gathering     GatheringSubmission @relation(fields: [gatheringId], references: [id], onDelete: Restrict)
+  @@index([province, city])
+}
+
+model ContentItem {
+  id            String @id @default(cuid())
+  authorId      String
+  chapterNumber Int
+  title         String @default("") @db.VarChar(120)
+  body          String
+  anonymous     Boolean @default(false)
+  publicName    String @db.VarChar(80)
+  publicAvatar  Int @default(0)
+  sourceUrl     String?
+  gatheringId   String?
+  dojoId        String?
+  status        String @default("PUBLISHED")
+  viewsCount    Int @default(0)
+  acknowledgementVersion String @default("publication-v1")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  author        Account @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  chapter       Chapter @relation(fields: [chapterNumber], references: [number], onDelete: Restrict)
+  gathering     GatheringSubmission? @relation(fields: [gatheringId], references: [id], onDelete: Restrict)
+  dojo          Dojo? @relation(fields: [dojoId], references: [id], onDelete: Restrict)
+  likes         ContentLike[]
+  comments      ContentComment[]
+  views         ContentView[]
+  exposures     Exposure[]
+  media         MediaAsset[]
+  @@index([chapterNumber, status, viewsCount, createdAt, id])
+  @@index([chapterNumber, status, createdAt, id])
+  @@index([authorId, createdAt])
+  @@index([gatheringId])
+  @@index([dojoId])
+}
+
+model ContentLike {
+  contentId String
+  accountId String
+  createdAt DateTime @default(now())
+  content   ContentItem @relation(fields: [contentId], references: [id], onDelete: Restrict)
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  @@id([contentId, accountId])
+  @@index([accountId])
+}
+
+model ContentComment {
+  id        String @id @default(cuid())
+  contentId String
+  authorId  String
+  body      String @db.VarChar(2000)
+  status    String @default("PUBLISHED")
+  createdAt DateTime @default(now())
+  content   ContentItem @relation(fields: [contentId], references: [id], onDelete: Restrict)
+  author    Account @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  @@index([contentId, status, createdAt])
+  @@index([authorId])
+}
+
+model ContentView {
+  id          String @id @default(cuid())
+  contentId   String
+  readerKey   String
+  visitorHash String
+  readDay     String @db.VarChar(10)
+  createdAt   DateTime @default(now())
+  content     ContentItem @relation(fields: [contentId], references: [id], onDelete: Restrict)
+  @@unique([contentId, readerKey, readDay])
+  @@unique([contentId, visitorHash, readDay])
+}
+
+model Exposure {
+  id          String @id @default(cuid())
+  contentId   String
+  visitorHash String
+  readDay     String @db.VarChar(10)
+  createdAt   DateTime @default(now())
+  content     ContentItem @relation(fields: [contentId], references: [id], onDelete: Restrict)
+  @@unique([contentId, visitorHash, readDay])
+}
+
+model MediaAsset {
+  id        String @id @default(cuid())
+  ownerId   String
+  contentId String?
+  objectKey String @unique
+  mime      String
+  size      Int
+  status    String @default("PENDING")
+  createdAt DateTime @default(now())
+  owner     Account @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  content   ContentItem? @relation(fields: [contentId], references: [id], onDelete: Restrict)
+  @@index([ownerId, status])
+  @@index([contentId, status])
+}
+
+model Feedback {
+  id        String @id @default(cuid())
+  accountId String?
+  body      String @db.VarChar(4000)
+  status    String @default("SUBMITTED")
+  createdAt DateTime @default(now())
+  account   Account? @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  @@index([accountId, createdAt])
+  @@index([status, createdAt])
+}
+
+model AuditEvent {
+  id        String @id @default(cuid())
+  actorId   String
+  action    String
+  objectId  String
+  detail    Json?
+  createdAt DateTime @default(now())
+  @@index([objectId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+model IdempotencyRecord {
+  key         String @id
+  requestHash String
+  response    Json
+  createdAt   DateTime @default(now())
+  @@index([createdAt])
+}

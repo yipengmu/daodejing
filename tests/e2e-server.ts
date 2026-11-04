@@ -1,0 +1,22 @@
+import express from 'express';
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import crypto from 'node:crypto';
+process.env.NODE_ENV = 'test'; process.env.JWT_SECRET = crypto.randomBytes(40).toString('hex'); process.env.IDENTITY_HMAC_SECRET = crypto.randomBytes(40).toString('hex');
+process.env.DATABASE_URL = 'postgresql://test:test@127.0.0.1:1/browser_test'; process.env.DATABASE_URL_UNPOOLED = process.env.DATABASE_URL;
+for (const key of Object.keys(process.env)) if (/^(TENCENT|ALIBABA|AMAP|APP_ORIGIN)/.test(key)) delete process.env[key];
+const directory = await mkdtemp(path.join(os.tmpdir(), 'ddj-browser-'));
+process.env.LOCAL_MEDIA_DIR = path.join(directory, 'media');
+const { createLocalDatabase } = await import('../lib/local-db'); const { createApi } = await import('../lib/api'); const { adaptNode } = await import('../lib/transport'); const { seed } = await import('../scripts/seed'); const { hashPassword, digest } = await import('@daodejing/auth-kit');
+const database = await createLocalDatabase(directory); await seed(database.client);
+await database.client.account.create({ data: { passwordHash: await hashPassword('BrowserTest!2026'), profile: { create: { displayName: '浏览器测试读者', avatar: 2 } }, identities: { create: { kind: 'EMAIL', value: 'browser@example.test', lookupHash: digest(process.env.IDENTITY_HMAC_SECRET!, 'EMAIL:browser@example.test') } } } });
+const handle = createApi({ db: database.client }); const app = express();
+app.use('/api', express.raw({ type: () => true, limit: '21mb' }));
+app.use('/api', async (req, res) => { req.url = `/api${req.url}`; await adaptNode(req, res, handle); });
+app.use(express.static('dist'));
+app.use((_req, res) => res.sendFile(path.resolve('dist/index.html')));
+const server = app.listen(4320, '127.0.0.1');
+let closed = false;
+async function shutdown() { if (closed) return; closed = true; server.close(); await database.close(); await rm(directory, { recursive: true, force: true }); process.exit(0); }
+process.on('SIGTERM', shutdown); process.on('SIGINT', shutdown);

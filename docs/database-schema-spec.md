@@ -1,6 +1,6 @@
 # 《道德经》公益共读平台数据库设计预研稿（未批准）
 
-- 状态：预研草案 v0.1；数据库设计尚未启动，本稿不作为实现基线
+- 状态：历史预研草案 v0.1，未批准；已由 2026-11-03 的 [MVP-1 独立实施设计](./mvp-1-database-design.md)替代，本稿不作为实现基线
 - 日期：2026-10-31
 - 依据：[产品 Proposal](./proposal-spec.md)、[技术架构 Spec](./technical-architecture-spec.md)、[技术实施计划](./technical-implementation-plan.md)、[页面流程 Spec](./product-page-flow-spec.md)
 - 数据库：独立 Neon PostgreSQL；Prisma 管理 schema 与迁移
