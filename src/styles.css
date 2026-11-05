@@ -111,4 +111,7 @@
 .annotation-heading .note-attribution{margin:0;font-size:10px}
 .drawer-content .annotation-heading+.annotation{line-height:1.9}
 .drawer-content h2:not(:first-child){margin-top:22px}
+.classic-commentary .annotation{white-space:pre-wrap;color:#626a57;margin:8px 0;line-height:1.9}
 .drawer-collapsed-label{letter-spacing:1px}
+/* Discovery map numbering and basemap labels */
+.map-marker{display:flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:2px solid #f8faf1;border-radius:50%;background:#617e50;color:#fff;font-size:11px;font-weight:700;line-height:1;box-shadow:0 2px 8px #34482b55;cursor:pointer}.map-marker.temporary,.place-number.temporary{background:#b97d4d}.place-number{display:inline-flex;align-items:center;justify-content:center;flex:0 0 22px;width:22px;height:22px;border-radius:50%;background:#617e50;color:#fff;font:600 11px/1 sans-serif}.place-row.selected .place-number{outline:2px solid #a7b99a;outline-offset:2px}.map-legend{max-width:calc(100% - 30px);flex-wrap:wrap;row-gap:7px}
