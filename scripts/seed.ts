@@ -7,7 +7,7 @@ export async function seed(db: PrismaClient) {
   await db.edition.upsert({ where: { id: source.edition.id }, create: { id: source.edition.id, title: source.edition.title, label: source.edition.text_label, source: source.edition }, update: { source: source.edition } });
   for (const chapter of source.chapters) {
     await db.chapter.upsert({ where: { number: chapter.number }, create: { number: chapter.number, title: chapter.title, section: chapter.section }, update: { title: chapter.title, section: chapter.section } });
-    await db.chapterText.upsert({ where: { chapterNumber_editionId: { chapterNumber: chapter.number, editionId: source.edition.id } }, create: { chapterNumber: chapter.number, editionId: source.edition.id, text: chapter.original_text, explanation: chapter.youth_easy_read || chapter.plain_explanation, source: { reviewStatus: 'editorial_draft', label: '用户提供文本' } }, update: {} });
+    await db.chapterText.upsert({ where: { chapterNumber_editionId: { chapterNumber: chapter.number, editionId: source.edition.id } }, create: { chapterNumber: chapter.number, editionId: source.edition.id, text: chapter.original_text, explanation: chapter.plain_explanation, source: { reviewStatus: 'editorial_draft', label: '用户提供文本' } }, update: {} });
     await db.chapterChannel.upsert({ where: { chapterNumber: chapter.number }, create: { id: `chapter-${chapter.number}`, chapterNumber: chapter.number }, update: {} });
   }
   const locations = YAML.parse(await readFile(new URL('../prisma/seed/hangzhou-dojos.yaml', import.meta.url), 'utf8'));
