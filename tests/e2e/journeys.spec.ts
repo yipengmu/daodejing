@@ -107,3 +107,16 @@ test('地点列表与外部导航可用，不显示私有房号', async ({ page 
   await expect(page.getByRole('link', { name: '高德地图' })).toHaveAttribute('href', /^https:\/\/uri\.amap\.com\//);
   await expect(page.getByRole('link', { name: '百度地图' })).toBeVisible();
 });
+
+test('游客通过共读助手发布整理记录并在本设备撤回', async ({ page }) => {
+  await page.goto('/chapters/1');
+  await page.getByRole('link', { name: /和助手说说/ }).click();
+  await page.getByLabel('分享链接或文字').fill('一场共读的记录，讨论知足与平和。');
+  await page.getByRole('button', { name: '发送并公开分享' }).click();
+  await expect(page.getByRole('heading', { name: '一场共读的记录' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: '内容目录' })).toBeVisible();
+  await expect(page.getByText('张*分享，慢下来才能听见自己的感受。')).toBeVisible();
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: '撤回这份分享' }).click();
+  await expect(page.getByRole('heading', { name: '分享已撤回' })).toBeVisible();
+});

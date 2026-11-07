@@ -1,5 +1,7 @@
 # 线下共修流程与自愿记录：概念 Spec
 
+> 2026-11-06 更新：本文件保留历史线下活动概念；当前产品不计划自建录音或转写，频道导入采用 [AgentBot 导入 Spec](./channel-agent-import-spec.md)。该 Spec 对游客提交、自动公开和整理规则的决定优先于本文相关设想。
+
 - 状态：讨论稿 v0.1（后续 Feature，非 MVP）
 - 日期：2026-11-01
 - 依据：[产品 Proposal](./proposal-spec.md)、[设计指导 Spec](./design-guidelines-spec.md)、[技术架构 Spec](./technical-architecture-spec.md)

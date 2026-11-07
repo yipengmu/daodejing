@@ -11,7 +11,7 @@ process.env.LOCAL_MEDIA_DIR = path.join(directory, 'media');
 const { createLocalDatabase } = await import('../lib/local-db'); const { createApi } = await import('../lib/api'); const { adaptNode } = await import('../lib/transport'); const { seed } = await import('../scripts/seed'); const { hashPassword, digest } = await import('@daodejing/auth-kit');
 const database = await createLocalDatabase(directory); await seed(database.client);
 await database.client.account.create({ data: { passwordHash: await hashPassword('BrowserTest!2026'), profile: { create: { displayName: '浏览器测试读者', avatar: 2 } }, identities: { create: { kind: 'EMAIL', value: 'browser@example.test', lookupHash: digest(process.env.IDENTITY_HMAC_SECRET!, 'EMAIL:browser@example.test') } } } });
-const handle = createApi({ db: database.client }); const app = express();
+const handle = createApi({ db: database.client, prepareImport: async () => ({ title: '一场共读的记录', summary: '共读者分享了对知足与平和的理解。', sections: [{ title: '从阅读到生活', paragraphs: ['张*分享，慢下来才能听见自己的感受。', '大家讨论了如何在日常生活中保持平和。'] }, { title: '共读的收获', paragraphs: ['每一次交流，都为经典带来新的理解。'] }] }) }); const app = express();
 app.use('/api', express.raw({ type: () => true, limit: '21mb' }));
 app.use('/api', async (req, res) => { req.url = `/api${req.url}`; await adaptNode(req, res, handle); });
 app.use(express.static('dist'));

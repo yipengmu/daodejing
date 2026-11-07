@@ -40,6 +40,28 @@ test('MVP-1 PostgreSQL 持久化与共享 API 场景', async t => {
       for (const place of places.data.places) { assert.equal(place.contact, null); assert.equal('sourcePrivate' in place, false); assert.equal('ownerId' in place, false); assert.equal('unit' in place, false); }
       assert.ok(!JSON.stringify(places.data).includes('1301'));
     });
+    await t.test('游客导入、来源保密、幂等提交和撤回权限', async () => {
+      let calls = 0;
+      const prepare = async () => { calls++; return { title: '共读记录', summary: '张*分享了读书体会。', sections: [{ title: '读书心得', paragraphs: ['张*谈到保持平和。'] }] }; };
+      const endpoint = createApi({ db, clock: () => now, prepareImport: prepare });
+      const token = 'ab'.repeat(32); const key = randomUUID();
+      await guest.call('/shares?chapter=1');
+      const request = (body: unknown, requestKey = key) => new Request('http://localhost/api/agent-imports', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': requestKey, Cookie: [...guest.cookie].map(([k, v]) => `${k}=${v}`).join('; ') }, body: JSON.stringify(body) });
+      const body = { chapter: 1, text: '张三分享了读书体会。', url: 'https://www.feishu.cn/secret-source', token };
+      const first = await endpoint(request(body)); const data = (await first.json() as any).data;
+      assert.equal(first.status, 201);
+      const again = await endpoint(request(body)); assert.equal((await again.json() as any).data.id, data.id); assert.equal(calls, 1);
+      assert.equal((await endpoint(request({ ...body, text: '修改后的内容' }))).status, 409);
+      assert.equal((await endpoint(request({ ...body, url: 'https://feishu.cn.attacker.invalid/' }))).status, 400);
+      const detail = await guest.call(`/shares/${data.id}`); assert.equal(detail.status, 200);
+      assert.equal(detail.data.importData.sections[0].title, '读书心得');
+      assert.ok(!JSON.stringify(detail.data).includes('secret-source')); assert.ok(!JSON.stringify(detail.data).includes('张三')); assert.ok(!JSON.stringify(detail.data).includes(token));
+      assert.equal((await guest.call(`/agent-imports/${data.id}/withdraw`, 'POST', { token: 'cd'.repeat(32) })).status, 404);
+      assert.equal((await guest.call(`/agent-imports/${data.id}/withdraw`, 'POST', { token })).status, 200);
+      assert.equal((await guest.call(`/shares/${data.id}`)).status, 404);
+      const failed = createApi({ db, prepareImport: async () => { throw new Error('provider failure'); } });
+      const before = await db.contentItem.count(); assert.equal((await failed(request({ ...body, text: '其他内容' }, randomUUID()))).status, 500); assert.equal(await db.contentItem.count(), before);
+    });
     await t.test('游客可提交 VOC；幂等重试只存一条，同键不同内容冲突', async () => {
       const key = randomUUID(); const first = await guest.call('/feedback', 'POST', { body: '阅读字号设置很方便，希望保留清晰的来源。' }, { 'Idempotency-Key': key });
       const repeat = await guest.call('/feedback', 'POST', { body: '阅读字号设置很方便，希望保留清晰的来源。' }, { 'Idempotency-Key': key });

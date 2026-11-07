@@ -1,5 +1,7 @@
 # MVP-1 数据库设计与基线对照
 
+> 2026-11-06 增量设计：AgentBot 导入作为 `ContentItem` 关联一个现有章节；仅此类型允许 `authorId` 为空，`importData` 保存已整理公开文本，`importTokenHash` 保存游客撤回令牌摘要，`sourceUrl` 保存在服务端且不进入公开 DTO。数据库检查约束保证普通分享仍有作者、导入项包含结构及令牌摘要；通过新迁移增加，不修改已应用迁移。详见 [导入 Spec](./channel-agent-import-spec.md)。
+
 - 状态：实施设计 v1.0；2026-11-03 完成基线检查，已据此建立 schema/migration 并通过本地验证
 - 适用：独立 PostgreSQL / Neon；与未经批准的 database-schema-spec.md 预研稿分开
 

@@ -95,3 +95,9 @@ npm run test:e2e
 源章节和地点来自 `prisma/seed/`；`npm run data:build` 校验 81 章并生成前端内容。来源状态必须随数据保留，不把用户提供、尚未校勘的文本标成已核定底本。地点原始私密地址和联系方式仅在内部来源数据中保留，不进入公开 DTO。
 
 参考：[高德安全代理说明](https://lbs.amap.com/api/javascript-api-v2/guide/abc/jscode)。
+
+## 章节频道 AgentBot 导入
+
+频道中的共读助手支持游客提交飞书、钉钉公开链接或粘贴文字，整理后直接公开到所选章节；源链接不对外显示。服务端通过 `OPENAI_API_KEY` 调用 OpenAI，`OPENAI_IMPORT_MODEL` 可选，默认 `gpt-4.1-mini`；密钥只放服务端环境。公开页面如果无法直接提取正文，可粘贴导出的文字。游客使用发布设备上的凭证撤回；清除本地数据后需管理员协助。姓名遮盖依赖模型，不能保证完全匿名。运行环境须能连接 OpenAI；模型或抓取失败时不会发布内容。
+
+部署前先为目标环境执行新增数据库迁移；不要在构建时自动迁移。详见 [频道导入 Spec](docs/channel-agent-import-spec.md) 和 [开发记录](docs/development-progress.md)。

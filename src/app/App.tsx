@@ -10,6 +10,7 @@ import { Channel, ShareDetail, Compose } from '../features/shares/Pages';
 import { Discover, PlaceDetail, DojoForm } from '../features/places/Pages';
 import { GatheringForm, GatheringDetail } from '../features/gatherings/Pages';
 import { CaptureImport } from '../features/gatherings/CaptureImport';
+import { AgentImport } from '../features/shares/AgentImport';
 import { Auth, Me, MyContent, ProfilePage, Feedback } from '../features/account/Pages';
 
 export default function App() {
@@ -26,7 +27,7 @@ export default function App() {
       <Route path="/chapters/:number" element={<Channel/>}/><Route path="/shares/:id" element={<ShareDetail/>}/><Route path="/compose" element={<Compose/>}/>
       <Route path="/discover" element={<Discover/>}/><Route path="/places/:id" element={<PlaceDetail/>}/><Route path="/dojos/new" element={<DojoForm/>}/><Route path="/dojos/:id/edit" element={<DojoForm/>}/>
       <Route path="/gatherings/new" element={<GatheringForm/>}/><Route path="/gatherings/:id" element={<GatheringDetail/>}/>
-      <Route path="/recordings/import" element={<CaptureImport/>}/>
+      <Route path="/agent/import" element={<AgentImport/>}/><Route path="/recordings/import" element={<CaptureImport/>}/>
       <Route path="/auth" element={<Auth/>}/><Route path="/me" element={<Me/>}/><Route path="/me/content" element={<MyContent/>}/><Route path="/me/profile" element={<ProfilePage/>}/><Route path="/feedback" element={<Feedback/>}/>
       <Route path="*" element={<div className="page-width"><h1>这一页暂时找不到</h1><Link className="button primary" to="/">回到读书</Link></div>}/>
     </Routes></div>

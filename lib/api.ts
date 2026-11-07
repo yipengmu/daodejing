@@ -10,9 +10,10 @@ import { audit, idempotent, rateLimit } from './persistence';
 import { createShare, listShares, getShare, updateShare, recordRead, recordExposure, setLike, comments } from './content';
 import { listPlaces, getPlace, searchPoi, nearbyPoi, proxyAmap, saveDojo, placeDto } from './places';
 import { createGathering, getGathering, listGatherings, updateGathering } from './gatherings';
+import { createAgentImport, withdrawAgentImport, type ImportDocument } from './agent-import';
 import { beginUpload, localUpload, completeUpload, serveMedia } from './media';
 
-export function createApi(options: { db: PrismaClient; verification?: VerificationProvider; clock?: () => Date }) {
+export function createApi(options: { db: PrismaClient; verification?: VerificationProvider; clock?: () => Date; prepareImport?: (text: string, url: string) => Promise<ImportDocument> }) {
   const db = options.db; const providers = options.verification || cloudVerification;
   return async function handle(request: Request): Promise<Response> {
     const requestId = randomUUID();
@@ -43,6 +44,8 @@ export function createApi(options: { db: PrismaClient; verification?: Verificati
 
       if (path.startsWith('/auth/')) response = await authHandler(path.slice(6), request, db, providers, user, ip, now);
       else if (path === '/config' && method === 'GET') response = json({ amapKey: process.env.AMAP_WEB_KEY || null, mapSearch: !!process.env.AMAP_REST_KEY, sms: !!process.env.ALIBABA_PNVS_TEMPLATE_CODE && !!process.env.ALIBABA_CLOUD_ACCESS_KEY_ID, email: !!process.env.TENCENT_SES_TEMPLATE_ID && !!process.env.TENCENTCLOUD_SECRET_ID });
+      else if (path === '/agent-imports' && method === 'POST') response = await createAgentImport(request, db, visitor, ip, now, options.prepareImport);
+      else if (/^\/agent-imports\/[^/]+\/withdraw$/.test(path) && method === 'POST') response = await withdrawAgentImport(request, db, path.split('/')[2], user);
       else if (path === '/shares' && method === 'GET') response = json(await listShares(db, user, url.searchParams));
       else if (path === '/shares' && method === 'POST') response = await createShare(request, db, user, now);
       else if (shareMatch) {

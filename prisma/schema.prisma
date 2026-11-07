@@ -181,7 +181,7 @@ model TemporaryPlace {
 
 model ContentItem {
   id            String @id @default(cuid())
-  authorId      String
+  authorId      String?
   chapterNumber Int
   title         String @default("") @db.VarChar(120)
   body          String
@@ -189,6 +189,8 @@ model ContentItem {
   publicName    String @db.VarChar(80)
   publicAvatar  Int @default(0)
   sourceUrl     String?
+  importData    Json?
+  importTokenHash String?
   gatheringId   String?
   dojoId        String?
   status        String @default("PUBLISHED")
@@ -196,7 +198,7 @@ model ContentItem {
   acknowledgementVersion String @default("publication-v1")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  author        Account @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  author        Account? @relation(fields: [authorId], references: [id], onDelete: Restrict)
   chapter       Chapter @relation(fields: [chapterNumber], references: [number], onDelete: Restrict)
   gathering     GatheringSubmission? @relation(fields: [gatheringId], references: [id], onDelete: Restrict)
   dojo          Dojo? @relation(fields: [dojoId], references: [id], onDelete: Restrict)
