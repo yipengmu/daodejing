@@ -110,27 +110,32 @@ export async function serveMedia(request: Request, db: PrismaClient, id: string,
   const published = asset?.content?.status === 'PUBLISHED';
   const ownUnpublished = asset && !asset.contentId && user?.id === asset.ownerId;
   if (!asset || asset.status !== 'READY' || (!published && !ownUnpublished)) throw new ApiError(404, '媒体不存在或已停止公开');
-  const blob = await db.mediaBlob.findUnique({ where: { mediaId: id } });
-  const object = blob ? databaseMediaResponse(Buffer.from(blob.data), request.headers.get('range')) : await readObject(asset.objectKey, request.headers.get('range'));
+  const object = await databaseMediaResponse(db, id, request.headers.get('range'), request.method === 'HEAD') || await readObject(asset.objectKey, request.headers.get('range'));
   if (!object.ok && object.status !== 416) throw new ApiError(502, '媒体暂时无法读取');
   const headers = new Headers({ 'Content-Type': asset.mime, 'Cache-Control': 'private, no-store, max-age=0', 'X-Content-Type-Options': 'nosniff', 'Content-Disposition': `inline; filename="${id}.${mediaFormats[asset.mime]}"`, 'Accept-Ranges': 'bytes' });
   for (const key of ['content-length', 'content-range']) { const value = object.headers.get(key); if (value) headers.set(key, value); }
   return new Response(request.method === 'HEAD' ? null : object.body, { status: object.status, headers });
 }
 
-function databaseMediaResponse(data: Buffer, range: string | null) {
+async function databaseMediaResponse(db: PrismaClient, id: string, range: string | null, head: boolean): Promise<Response | null> {
+  const rows = await db.$queryRaw<Array<{ size: number }>>`SELECT octet_length(data)::integer AS size FROM "MediaBlob" WHERE "mediaId" = ${id}`;
+  if (!rows.length) return null;
+  const size = rows[0].size;
   const headers = new Headers({ 'Accept-Ranges': 'bytes' });
-  let start = 0, end = data.length - 1;
+  let start = 0, end = size - 1;
   if (range) {
     const match = /^bytes=(\d*)-(\d*)$/.exec(range);
-    if (!match || (!match[1] && !match[2])) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${data.length}` } });
+    if (!match || (!match[1] && !match[2])) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${size}` } });
     if (match[1]) { start = Number(match[1]); if (match[2]) end = Math.min(end, Number(match[2])); }
-    else start = Math.max(0, data.length - Number(match[2]));
+    else start = Math.max(0, size - Number(match[2]));
   }
-  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= data.length) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${data.length}` } });
+  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= size) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${size}` } });
   end = Math.min(end, start + mediaChunkSize - 1);
-  const partial = !!range || end < data.length - 1;
+  const partial = !!range || end < size - 1;
   headers.set('Content-Length', String(end - start + 1));
-  if (partial) headers.set('Content-Range', `bytes ${start}-${end}/${data.length}`);
-  return new Response(new Uint8Array(data.subarray(start, end + 1)), { status: partial ? 206 : 200, headers });
+  if (partial) headers.set('Content-Range', `bytes ${start}-${end}/${size}`);
+  if (head) return new Response(null, { status: partial ? 206 : 200, headers });
+  const chunks = await db.$queryRaw<Array<{ part: Uint8Array }>>`SELECT substring(data from ${start + 1} for ${end - start + 1}) AS part FROM "MediaBlob" WHERE "mediaId" = ${id}`;
+  if (!chunks.length) throw new ApiError(404, '媒体不存在');
+  return new Response(Uint8Array.from(chunks[0].part), { status: partial ? 206 : 200, headers });
 }
