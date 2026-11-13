@@ -23,7 +23,8 @@
     "test": "tsx scripts/test.ts",
     "test:e2e": "playwright test",
     "postinstall": "prisma generate",
-    "account:role": "tsx scripts/account-role.ts"
+    "account:role": "tsx scripts/account-role.ts",
+    "audio:denoise": "tsx scripts/audio-denoise.ts"
   },
   "dependencies": {
     "@alicloud/dypnsapi20170525": "^2.0.0",

@@ -98,6 +98,8 @@ npm run test:e2e
 
 ## 章节频道 AgentBot 导入
 
+现场讲解音频的裁切、自动轻度降噪、校验、版本导入与回退见 [音频导入 SOP](docs/audio-import-sop.md)。本地准备命令为 `npm run audio:denoise -- <音频路径>`，需配置 FFmpeg；准备阶段保留原件，不打开数据库。
+
 频道中的共读助手支持游客提交飞书、钉钉公开链接或粘贴文字，整理后直接公开到所选章节；源链接不对外显示。服务端通过 `OPENAI_API_KEY` 调用 OpenAI，`OPENAI_IMPORT_MODEL` 可选，默认 `gpt-4.1-mini`；密钥只放服务端环境。公开页面如果无法直接提取正文，可粘贴导出的文字。游客使用发布设备上的凭证撤回；清除本地数据后需管理员协助。姓名遮盖依赖模型，不能保证完全匿名。运行环境须能连接 OpenAI；模型或抓取失败时不会发布内容。
 
 部署前先为目标环境执行新增数据库迁移；不要在构建时自动迁移。详见 [频道导入 Spec](docs/channel-agent-import-spec.md) 和 [开发记录](docs/development-progress.md)。
