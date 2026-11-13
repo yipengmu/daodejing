@@ -17,35 +17,27 @@ export function RequireLogin({ children }: { children: React.ReactNode }) {
 }
 export function Auth() {
   const [params] = useSearchParams(); const navigate = useNavigate(); const { user, reload } = useSession();
-  const [mode, setMode] = useState<'login' | 'register' | 'reset'>('login');
-  const [identifier, setIdentifier] = useState(''); const [password, setPassword] = useState(''); const [name, setName] = useState(''); const [code, setCode] = useState(''); const [challenge, setChallenge] = useState('');
-  const [error, setError] = useState(''); const [notice, setNotice] = useState(''); const [busy, setBusy] = useState(false); const [cooldown, setCooldown] = useState(0);
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [identifier, setIdentifier] = useState(''); const [password, setPassword] = useState(''); const [name, setName] = useState('');
+  const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
   const nextValue = params.get('next') || '/me'; const next = nextValue.startsWith('/') && !nextValue.startsWith('//') ? nextValue : '/me';
-  useEffect(() => { if (cooldown <= 0) return; const timer = window.setInterval(() => setCooldown(value => Math.max(0, value - 1)), 1000); return () => clearInterval(timer); }, [cooldown > 0]);
-  function switchMode(value: typeof mode) { setMode(value); setError(''); setNotice(''); setChallenge(''); setCode(''); }
-  async function sendCode() {
-    setError(''); setNotice(''); setBusy(true);
-    try { const result = await post<{ challengeId: string }>('/auth/send-code', { identifier, purpose: mode === 'reset' ? 'RESET' : 'REGISTER' }); setChallenge(result.challengeId); setCooldown(60); setNotice('验证码已发送，5 分钟内有效。'); } catch (e: any) { setError(e.message); } finally { setBusy(false); }
-  }
+  function switchMode(value: typeof mode) { setMode(value); setError(''); }
   async function submit(event: FormEvent) {
     event.preventDefault(); setError(''); setBusy(true);
     try {
       if (mode === 'login') await post('/auth/login', { identifier, password });
-      else if (mode === 'register') await post('/auth/register', { identifier, password, name, code, challengeId: challenge });
-      else { await post('/auth/reset-password', { identifier, password, code, challengeId: challenge }); setNotice('密码已重置，请使用新密码登录。'); setMode('login'); setPassword(''); setChallenge(''); return; }
+      else await post('/auth/register', { identifier, password, name });
       await reload(); navigate(next, { replace: true });
     } catch (e: any) { setError(e.message); } finally { setBusy(false); }
   }
   if (user) return <Navigate to={next} replace/>;
-  return <div className="auth-page page-width"><Back to="/" label="继续读书"/><div className="auth-card"><span className="brand-seal large">道</span><p className="eyebrow">共读，从此处开始</p><h1>{mode === 'register' ? '认识一起读书的你' : mode === 'reset' ? '找回密码' : '欢迎回来'}</h1><p className="muted">阅读始终向你敞开。登录后，可以留下体会和参与交流。</p><form onSubmit={submit}>
-    <label>手机号或邮箱<input name="identifier" autoComplete="username" required maxLength={254} value={identifier} onChange={e => { setIdentifier(e.target.value); setChallenge(''); }}/></label>
+  return <div className="auth-page page-width"><Back to="/" label="继续读书"/><div className="auth-card"><span className="brand-seal large">道</span><p className="eyebrow">共读，从此处开始</p><h1>{mode === 'register' ? '认识一起读书的你' : '欢迎回来'}</h1><p className="muted">阅读始终向你敞开。登录后，可以留下体会和参与交流。</p><form onSubmit={submit}>
+    <label>账号<input name="identifier" autoComplete="username" required minLength={3} maxLength={32} pattern="[A-Za-z0-9_]+" title="3–32 位字母、数字或下划线" value={identifier} onChange={e => setIdentifier(e.target.value)}/><small>3–32 位字母、数字或下划线。</small></label>
     {mode === 'register' && <label>公开昵称<input required maxLength={80} autoComplete="nickname" value={name} onChange={e => setName(e.target.value)}/><small>公开资料只展示昵称与内置头像。</small></label>}
-    {mode !== 'login' && <label>验证码<div className="input-action"><input aria-label="六位验证码" inputMode="numeric" autoComplete="one-time-code" required pattern="[0-9]{6}" maxLength={6} value={code} onChange={e => setCode(e.target.value)}/><button type="button" className="button secondary" disabled={busy || cooldown > 0 || !identifier} onClick={sendCode}>{cooldown ? `${cooldown} 秒后重发` : '获取验证码'}</button></div></label>}
-    <label>{mode === 'reset' ? '新密码' : '密码'}<input type="password" name="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required minLength={mode === 'login' ? 1 : 10} maxLength={128} value={password} onChange={e => setPassword(e.target.value)}/>{mode !== 'login' && <small>至少 10 位，建议组合使用字母、数字和符号。</small>}</label>
-    {mode === 'reset' && <p className="field-note">手机号可通过短信找回，24 小时内最多成功重置一次；邮箱账号通过已验证邮箱找回。</p>}
-    {error && <p className="form-error" role="alert">{error}</p>}{notice && <p className="form-notice" role="status">{notice}</p>}
-    <button className="button primary full-width" disabled={busy || (mode !== 'login' && !challenge)}>{busy ? '请稍候…' : mode === 'login' ? '登录，继续刚才的事' : mode === 'register' ? '注册并继续' : '重置密码'}</button>
-    </form><div className="auth-links">{mode === 'login' ? <><button className="text-button" onClick={() => switchMode('register')}>第一次来？注册账号</button><button className="text-button" onClick={() => switchMode('reset')}>忘记密码</button></> : <button className="text-button" onClick={() => switchMode('login')}>已有账号，返回登录</button>}</div><Link to="/feedback" className="muted small-link">还没登录？也可以给我们建议</Link></div></div>;
+    <label>密码<input type="password" name="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required minLength={mode === 'login' ? 1 : 10} maxLength={128} value={password} onChange={e => setPassword(e.target.value)}/>{mode === 'register' && <small>至少 10 位。</small>}</label>
+    {error && <p className="form-error" role="alert">{error}</p>}
+    <button className="button primary full-width" disabled={busy}>{busy ? '请稍候…' : mode === 'login' ? '登录，继续刚才的事' : '注册并登录'}</button>
+    </form><div className="auth-links">{mode === 'login' ? <button className="text-button" onClick={() => switchMode('register')}>第一次来？注册账号</button> : <button className="text-button" onClick={() => switchMode('login')}>已有账号，返回登录</button>}</div><Link to="/feedback" className="muted small-link">还没登录？也可以给我们建议</Link></div></div>;
 }
 export function Me() {
   const { user, loading, reload } = useSession(); const navigate = useNavigate(); const [error, setError] = useState('');

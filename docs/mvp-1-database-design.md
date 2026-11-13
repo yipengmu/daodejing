@@ -1,5 +1,9 @@
 # MVP-1 数据库设计与基线对照
 
+## 2026-11-13 MVP 注册调整
+
+注册使用唯一用户名、密码和公开昵称，不要求手机号或验证码。用户名按不区分大小写的 `USERNAME` 身份保存，唯一性由 AuthIdentity 的 `(kind, lookupHash)` 约束保证。登录成功签发 HttpOnly、SameSite=Lax 会话 Cookie，最长 30 天；退出、密码重置和账号停用仍由服务端撤销/校验。无验证联系方式时不提供自助找回密码。旧手机号/邮箱身份仍可登录，迁移不改写既有账号。
+
 > 2026-11-06 增量设计：AgentBot 导入作为 `ContentItem` 关联一个现有章节；仅此类型允许 `authorId` 为空，`importData` 保存已整理公开文本，`importTokenHash` 保存游客撤回令牌摘要，`sourceUrl` 保存在服务端且不进入公开 DTO。数据库检查约束保证普通分享仍有作者、导入项包含结构及令牌摘要；通过新迁移增加，不修改已应用迁移。详见 [导入 Spec](./channel-agent-import-spec.md)。
 
 - 状态：实施设计 v1.0；2026-11-03 完成基线检查，已据此建立 schema/migration 并通过本地验证

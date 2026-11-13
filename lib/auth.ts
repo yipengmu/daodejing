@@ -10,7 +10,7 @@ import { generateEmailCode, type VerificationProvider } from './providers/verifi
 export type User = Account & { profile: { displayName: string; avatar: number } | null };
 export function identity(value: string) {
   try { const result = normalizeIdentity(value); return { ...result, lookupHash: digest(secrets().hmac, `${result.kind}:${result.value}`) }; }
-  catch { throw new ApiError(400, '请输入有效的邮箱或中国大陆手机号'); }
+  catch { throw new ApiError(400, '账号需为 3–32 位字母、数字或下划线'); }
 }
 export async function session(request: Request, db: PrismaClient): Promise<User | null> {
   const token = cookies(request).ddj_session;
@@ -46,7 +46,7 @@ async function checkCode(db: PrismaClient, providers: VerificationProvider, data
   return { ...id, challengeId: challenge.id };
 }
 const verificationSchema = z.object({ identifier: cleanText(254), challengeId: cleanText(100), code: z.string().regex(/^\d{6}$/, '请输入六位验证码') });
-const signedInResponse = (user: User) => { const response = json({ user: profile(user) }); response.headers.append('Set-Cookie', cookie('ddj_session', signSession(user, secrets().jwt), 12 * 3600)); return response; };
+const signedInResponse = (user: User) => { const response = json({ user: profile(user) }); response.headers.append('Set-Cookie', cookie('ddj_session', signSession(user, secrets().jwt), 30 * 86400)); return response; };
 
 export async function authHandler(action: string, request: Request, db: PrismaClient, providers: VerificationProvider, user: User | null, ip: string, now: Date): Promise<Response> {
   if (action === 'me' && request.method === 'GET') {
@@ -82,12 +82,11 @@ export async function authHandler(action: string, request: Request, db: PrismaCl
     return signedInResponse(account);
   }
   if (action === 'register') {
-    const data = await input(request, verificationSchema.extend({ password: passwordSchema, name: cleanText(80) }));
+    const data = await input(request, z.object({ identifier: z.string().trim().min(3).max(32).regex(/^[A-Za-z0-9_]+$/, '账号仅支持字母、数字和下划线'), password: passwordSchema, name: cleanText(80) }));
     await rateLimit(db, 'register-ip', ip, 10, 3600, now);
-    const checked = await checkCode(db, providers, data, 'REGISTER', now);
+    const checked = identity(data.identifier);
     const passwordHash = await hashPassword(data.password);
     const account = await db.$transaction(async tx => {
-      await consume(tx, checked.challengeId, now);
       return tx.account.create({ data: { passwordHash, profile: { create: { displayName: data.name, avatar: Math.floor(Math.random() * 10) } }, identities: { create: { kind: checked.kind, lookupHash: checked.lookupHash, value: checked.value } } }, include: { profile: true } });
     });
     return signedInResponse(account);
