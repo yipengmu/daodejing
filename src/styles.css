@@ -141,6 +141,9 @@
 .drawer-content .annotation-heading h2{margin:0;font-size:18px}
 .annotation-heading .note-attribution{margin:0;font-size:10px}
 .drawer-content .annotation-heading+.annotation{line-height:1.9}
+.sentence-explanation{padding:0 0 16px;margin:0 0 16px;border-bottom:1px solid #dce1cf}
+.sentence-source{font-family:var(--serif);font-size:15px;line-height:1.9;color:#526047;margin:0 0 5px}
+.sentence-explanation .annotation{line-height:1.9}
 .drawer-content h2:not(:first-child){margin-top:22px}
 .classic-commentary .annotation{display:inline;white-space:normal;color:#626a57;margin:0;line-height:1.9}
 .classic-commentary .annotation+.annotation{margin-left:.5em}
@@ -192,6 +195,8 @@
 .drawer-grip{position:absolute;left:calc(50% - 18px);top:8px;width:36px;height:3px;border-radius:10px;background:#c5cdb8}
 .drawer-page{font:11px/1.4 Georgia,serif;letter-spacing:1px;color:#8a927b}
 .drawer-collapsed-label{font-size:13px;letter-spacing:1px}
+.drawer-handle-row.single-page{height:68px;min-height:68px}
+.drawer-handle-row.single-page>.drawer-handle{height:68px;min-height:68px;padding-top:18px}
 @media(max-width:760px){.drawer-handle-row{padding-inline:16px}.drawer-handle-row>.drawer-turn{width:42px;height:42px}}
 .channel-embedded{width:100%;max-width:none;margin:0;padding:0}
 .channel-embedded-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 16px}
