@@ -10,9 +10,8 @@ import { Channel } from '../shares/Pages';
 
 type Page = { start: number; end: number; text: string };
 type ReadingBlock = { kind: 'text'; text: string } | { kind: 'questions' | 'parallel'; lines: string[] };
-function defaultDrawerHeight() {
-  return window.matchMedia('(max-width: 760px)').matches ? 0.95 : 67 / window.innerHeight;
-}
+function collapsedDrawerHeight() { return 92 / window.innerHeight; }
+function expandedDrawerHeight() { return window.matchMedia('(max-width: 760px)').matches ? 0.95 : 0.5; }
 function splitChapterTen(text: string) {
   const clauses = text.match(/[^？]+？|[^；]+；|[^。]+。/gu) || [];
   if (clauses.length !== 11 || clauses.slice(0, 6).some(line => !line.endsWith('？'))) return null;
@@ -97,7 +96,7 @@ export default function Reader() {
   const anchor = useRef(0); const pointer = useRef<{ x: number; y: number } | null>(null); const drawerPointer = useRef<{ x: number; y: number; height: number; axis: 'pending' | 'vertical' | 'horizontal' } | null>(null); const suppressDrawerClick = useRef(false);
   const [pages, setPages] = useState<Page[]>([]); const [pageIndex, setPageIndex] = useState(0);
   const [font, setFont] = useState(() => { const saved = Number(localState.getItem('ddj-font')); return [18, 20, 22, 24].includes(saved) ? saved : 20; });
-  const [drawer, setDrawer] = useState(defaultDrawerHeight); const [tab, setTab] = useState('notes');
+  const [drawer, setDrawer] = useState(collapsedDrawerHeight); const [tab, setTab] = useState('notes');
   const [menu, setMenu] = useState(false); const [panel, setPanel] = useState<'contents' | 'settings' | 'source' | null>(null);
   const shares = useResource<{ shares: Share[] }>(`/shares?chapter=${number}&sort=reads`);
   useEffect(() => { setTab(shares.data?.shares.length ? 'shares' : 'notes'); }, [number, shares.data]);
@@ -127,7 +126,7 @@ export default function Reader() {
     if (!chapter || !viewport.current || !measure.current) return;
     const saved = readProgress();
     anchor.current = (location.state as any)?.start ? 0 : (location.state as any)?.end ? Number.MAX_SAFE_INTEGER : saved?.chapter === number ? saved.offset : 0;
-    setDrawer(defaultDrawerHeight());
+    setDrawer(collapsedDrawerHeight());
     const layout = () => {
       const box = viewport.current!;
       const next = paginate(chapter.text, measure.current!, box.clientWidth, Math.max(font * 2, box.clientHeight), number);
@@ -147,7 +146,7 @@ export default function Reader() {
   }, [number, page]);
   useEffect(() => { localState.setItem('ddj-font', String(font)); }, [font]);
   useEffect(() => {
-    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setPanel(null); setMenu(false); setDrawer(0); } };
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setPanel(null); setMenu(false); setDrawer(collapsedDrawerHeight()); } };
     document.addEventListener('keydown', escape); return () => document.removeEventListener('keydown', escape);
   }, []);
   if (!chapter || !Number.isInteger(number)) return <div className="page-width"><h1>这一章不存在</h1><Link to="/">返回目录</Link></div>;
@@ -164,7 +163,7 @@ export default function Reader() {
   }
   function toggleDrawer() {
     if (suppressDrawerClick.current) { suppressDrawerClick.current = false; return; }
-    setDrawer(drawer * window.innerHeight <= 100 ? defaultDrawerHeight() : 92 / window.innerHeight);
+    setDrawer(drawer * window.innerHeight <= 100 ? expandedDrawerHeight() : collapsedDrawerHeight());
   }
   function startDrawerDrag(e: React.PointerEvent<HTMLButtonElement>) {
     suppressDrawerClick.current = false;
