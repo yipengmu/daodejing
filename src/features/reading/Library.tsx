@@ -15,7 +15,7 @@ export default function Library() {
   const heat = useResource<{ chapters: { chapter: number; intensity: number }[] }>('/chapter-heat');
   const heatByChapter = new Map((heat.data?.chapters || []).map(item => [item.chapter, item.intensity]));
   return <div className="library page-width">
-    <div className="book-intro"><div className="book-title-block"><h1 className="intro-title">道德经</h1><p className="book-subtitle">一起读书，从一章开始。</p></div><span className="book-imprint" aria-hidden="true">公益<br/>共读</span></div>
+    <div className="book-intro"><div className="book-title-block"><h1 className="intro-title">道德经</h1><p className="book-subtitle">从一章开始。</p></div><span className="book-imprint" aria-hidden="true">公益<br/>共读</span></div>
     <section className="teacher-intro" aria-labelledby="teacher-intro-title">
       <div>
         <div className="teacher-intro-heading"><h2 id="teacher-intro-title">禅桥老师</h2><span>本产品法脉传承老师 · “践行公益《道德经》”发起人</span></div>
@@ -23,7 +23,7 @@ export default function Library() {
       </div>
     </section>
     {progress && <Link className="continue-reading" to={`/read/${progress.chapter}`}><BookOpen size={23}/><div><span>继续上次阅读</span><strong>第 {progress.chapter} 章 · {chapterTitle(progress.chapter)}</strong></div><ArrowRight size={20}/></Link>}
-    <div className="section-heading library-heading"><h2>八十一章</h2><span>目录</span></div>
+    <div className="section-heading library-heading"><h2>八十一章</h2></div>
     {[{ title: '道篇', chapters: chapters.filter(c => c.number <= 37) }, { title: '德篇', chapters: chapters.filter(c => c.number >= 38) }].map(part => <section className="chapter-part" key={part.title} aria-label={part.title}>
       <div className="chapter-part-heading"><h3>{part.title}</h3><span>第 {part.chapters[0].number} 至 {part.chapters[part.chapters.length - 1].number} 章</span></div>
       <div className="chapter-index">{part.chapters.map(c => <Link className={`chapter-link ${progress?.chapter === c.number ? 'current' : ''}`} to={`/read/${c.number}`} state={{ start: true }} key={c.number}><span className="chapter-number">{String(c.number).padStart(2, '0')}</span><span>{chapterTitle(c.number)}</span>{heat.data && <span className="chapter-heat" aria-hidden="true" style={{ '--heat-intensity': heatByChapter.get(c.number) || 0 } as React.CSSProperties} />}{progress?.chapter === c.number ? <small>最近阅读</small> : <ArrowRight size={16}/>}</Link>)}</div>
