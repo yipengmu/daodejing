@@ -135,7 +135,7 @@ async function databaseMediaResponse(db: PrismaClient, id: string, range: string
   headers.set('Content-Length', String(end - start + 1));
   if (partial) headers.set('Content-Range', `bytes ${start}-${end}/${size}`);
   if (head) return new Response(null, { status: partial ? 206 : 200, headers });
-  const chunks = await db.$queryRaw<Array<{ part: Uint8Array }>>`SELECT substring(data from ${start + 1} for ${end - start + 1}) AS part FROM "MediaBlob" WHERE "mediaId" = ${id}`;
+  const chunks = await db.$queryRaw<Array<{ part: Uint8Array }>>`SELECT substring(data from ${start + 1}::integer for ${end - start + 1}::integer) AS part FROM "MediaBlob" WHERE "mediaId" = ${id}`;
   if (!chunks.length) throw new ApiError(404, '媒体不存在');
   return new Response(Uint8Array.from(chunks[0].part), { status: partial ? 206 : 200, headers });
 }
