@@ -1,0 +1,13 @@
+{
+  "scanned": "2026-11-12",
+  "findings": {
+    "framework": "Vite + React 18, src/main.tsx",
+    "fonts": "System sans UI and Chinese serif reading, src/styles.css:1",
+    "palette": "Paper, ink and green, src/styles.css:1",
+    "layout": "81 ordered chapters, Library.tsx; measured pagination, Reader.tsx",
+    "projectRules": "docs/design-guidelines-spec.md and AGENTS.md"
+  },
+  "preserve": ["routes", "chapter content and provenance", "pagination", "privacy and permissions", "existing concurrent user changes"],
+  "introduce": ["src/cultural.css semantic tokens", "Chinese book masthead", "chapter ranges", "visible drawer label"],
+  "constraints": ["User confirmed reading first with restrained classical elements", "Existing dirty tree retained under user instructions; no stash or reset"]
+}

@@ -10,7 +10,17 @@ const directory = await mkdtemp(path.join(os.tmpdir(), 'ddj-browser-'));
 process.env.LOCAL_MEDIA_DIR = path.join(directory, 'media');
 const { createLocalDatabase } = await import('../lib/local-db'); const { createApi } = await import('../lib/api'); const { adaptNode } = await import('../lib/transport'); const { seed } = await import('../scripts/seed'); const { hashPassword, digest } = await import('@daodejing/auth-kit');
 const database = await createLocalDatabase(directory); await seed(database.client);
-await database.client.account.create({ data: { passwordHash: await hashPassword('BrowserTest!2026'), profile: { create: { displayName: '浏览器测试读者', avatar: 2 } }, identities: { create: { kind: 'EMAIL', value: 'browser@example.test', lookupHash: digest(process.env.IDENTITY_HMAC_SECRET!, 'EMAIL:browser@example.test') } } } });
+const reader = await database.client.account.create({ data: { passwordHash: await hashPassword('BrowserTest!2026'), profile: { create: { displayName: '浏览器测试读者', avatar: 2 } }, identities: { create: { kind: 'EMAIL', value: 'browser@example.test', lookupHash: digest(process.env.IDENTITY_HMAC_SECRET!, 'EMAIL:browser@example.test') } } } });
+// Only this disposable database contains generated media; never attach fixtures to real shares.
+const { writeObject } = await import('../lib/providers/storage');
+const { default: sharp } = await import('sharp');
+const cover = await sharp({ create: { width: 640, height: 240, channels: 3, background: '#e2e8dc' } }).png().toBuffer();
+const samples = Buffer.alloc(8000 * 2 * 12), header = Buffer.alloc(44);
+header.write('RIFF'); header.writeUInt32LE(36 + samples.length, 4); header.write('WAVEfmt ', 8); header.writeUInt32LE(16, 16); header.writeUInt16LE(1, 20); header.writeUInt16LE(1, 22); header.writeUInt32LE(8000, 24); header.writeUInt32LE(16000, 28); header.writeUInt16LE(2, 32); header.writeUInt16LE(16, 34); header.write('data', 36); header.writeUInt32LE(samples.length, 40);
+const wav = Buffer.concat([header, samples]);
+await writeObject('browser-fixture/cover.png', cover, 'image/png');
+await writeObject('browser-fixture/audio.wav', wav, 'audio/wav');
+await database.client.contentItem.create({ data: { id: 'browser-audio-fixture', chapterNumber: 9, anonymous: true, importTokenHash: crypto.randomBytes(32).toString('hex'), title: '播放器验收样本（测试音频）', body: '仅用于独立测试环境。', publicName: '测试读者', importData: { title: '播放器验收样本（测试音频）', summary: '理解 **知止**，也为生活留白。', sections: [{ title: '阅读与聆听', paragraphs: ['这是独立测试内容。', '### 在生活中体会\n- 理解 **知止**，把体会带回日常。'] }] }, media: { create: [{ ownerId: reader.id, objectKey: 'browser-fixture/cover.png', mime: 'image/png', size: cover.length, status: 'READY' }, { ownerId: reader.id, objectKey: 'browser-fixture/audio.wav', mime: 'audio/wav', size: wav.length, status: 'READY' }] } } });
 const handle = createApi({ db: database.client, prepareImport: async () => ({ title: '一场共读的记录', summary: '共读者分享了对知足与平和的理解。', sections: [{ title: '从阅读到生活', paragraphs: ['张*分享，慢下来才能听见自己的感受。', '大家讨论了如何在日常生活中保持平和。'] }, { title: '共读的收获', paragraphs: ['每一次交流，都为经典带来新的理解。'] }] }) }); const app = express();
 app.use('/api', express.raw({ type: () => true, limit: '21mb' }));
 app.use('/api', async (req, res) => { req.url = `/api${req.url}`; await adaptNode(req, res, handle); });

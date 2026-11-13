@@ -1,0 +1,19 @@
+[
+  {
+    "date": "2026-11-12",
+    "mode": "redesign",
+    "depth": "restyle",
+    "scope": "app",
+    "theme": "project Chinese classics",
+    "shape": "chapter index and reading canvas",
+    "signature": "Chinese book masthead with restrained vermilion imprint",
+    "prompt": "阅读优先，古典元素克制，提升现有网站设计感",
+    "review": "in-thread, desktop and phone screenshots; improved collapsed drawer discoverability",
+    "validation": {
+      "static": "0 FAIL, 0 REFLEX, 0 WARN on cultural.css, Library.tsx, Reader.tsx",
+      "render": "not run: puppeteer-core absent",
+      "e2e": "14 tests blocked before assertions by Chrome startup permissions",
+      "browser": "81 links at 320/375/768/1280/1920 actual CSS pixels, no horizontal overflow; 24px scripture at 291 usable pixels reassembled exactly across 3 pages"
+    }
+  }
+]

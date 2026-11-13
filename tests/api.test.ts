@@ -8,6 +8,37 @@ import { seed } from '../scripts/seed';
 import { signPoi, type Poi } from '../lib/places';
 import { sanitizeMedia } from '../lib/media';
 import type { VerificationProvider } from '../lib/providers/verification';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { StructuredReading } from '../src/features/shares/StructuredReading';
+
+test('共读纪要的有限排版保留旧段落，并将来源 HTML 与链接作为文字', () => {
+  const html = renderToStaticMarkup(createElement(StructuredReading, { document: {
+    title: '共读纪要', summary: '体会 **和光同尘**', sections: [{ title: '小组分享｜19:08—19:20', paragraphs: [
+      '原有纯文字段落。', '### 贵行不贵言\n- 共读者强调 **行动**。\n- <img src=x onerror=alert(1)>\n- [链接](javascript:alert(1))'
+    ] }]
+  } }));
+  assert.ok(html.includes('<strong>和光同尘</strong>'));
+  assert.ok(html.includes('<h3>贵行不贵言</h3>'));
+  assert.ok(html.includes('<ul><li>'));
+  assert.ok(html.includes('原有纯文字段落。'));
+  assert.ok(html.includes('&lt;img src=x onerror=alert(1)&gt;'));
+  assert.ok(!html.includes('<img') && !html.includes('href="javascript:'));
+  assert.ok(!html.includes('人物姓名已尝试遮盖'));
+});
+
+test('纪要同一段内的多个主题独立呈现，保留导语、顺序和锚点', () => {
+  const html = renderToStaticMarkup(createElement(StructuredReading, { document: {
+    title: '共读', summary: '', sections: [{ title: '交流', paragraphs: [
+      '原有导语。\n### 主题甲\n- 保留第一项。\n### 主题乙\n保留第二段。', '末尾原段落。'
+    ] }]
+  } }));
+  assert.equal((html.match(/class="reading-topic"/g) || []).length, 2);
+  assert.ok(html.indexOf('原有导语。') < html.indexOf('主题甲'));
+  assert.ok(html.indexOf('保留第一项。') < html.indexOf('主题乙'));
+  assert.ok(html.indexOf('保留第二段。') < html.indexOf('末尾原段落。'));
+  assert.ok(html.includes('href="#reading-section-0"') && html.includes('id="reading-section-0"'));
+});
 
 test('MVP-1 PostgreSQL 持久化与共享 API 场景', async t => {
   const database = await createLocalDatabase(process.env.TEST_DB_DIR!); const db = database.client;

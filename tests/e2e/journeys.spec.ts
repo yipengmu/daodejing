@@ -2,6 +2,21 @@ import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import YAML from 'yaml';
 
+test('现场音频位于封面与纪要之间，按需加载且可播放定位', async ({ page }) => {
+  await page.goto('/shares/browser-audio-fixture');
+  const player = page.locator('.share-audio audio');
+  await expect(player).toHaveCount(1);
+  await expect(player).toHaveAttribute('preload', 'metadata');
+  await expect(page.locator('.share-cover + .share-audio + .structured-reading')).toHaveCount(1);
+  await expect(page.locator('.media-gallery audio')).toHaveCount(0);
+  await expect(player).toHaveAttribute('src', /^\/api\/media\//);
+  await player.evaluate((audio: HTMLAudioElement) => audio.play());
+  await expect.poll(() => player.evaluate((audio: HTMLAudioElement) => audio.currentTime)).toBeGreaterThan(0);
+  await player.evaluate((audio: HTMLAudioElement) => { audio.pause(); audio.currentTime = 8; });
+  await expect.poll(() => player.evaluate((audio: HTMLAudioElement) => audio.currentTime)).toBeGreaterThanOrEqual(8);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
 test('匿名读经：81 章目录、阅读浮层、来源和频道返回', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto('/');
