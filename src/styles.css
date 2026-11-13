@@ -49,6 +49,17 @@
 .library .chapter-link small{font-size:9px;color:#a0a691;opacity:.72}
 .reader-toolbar-start{display:flex;align-items:center;gap:20px}
 .reader-home-link{white-space:nowrap}
+/* Chapter 10 specimen: keep the source order while grouping parallel questions for scanning. */
+.reader-book-chapter-ten{max-width:1120px}
+.chapter-ten-layout{display:flex;flex-direction:column;gap:clamp(18px,3.5vh,34px);padding:0 2px}
+.chapter-ten-questions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:clamp(28px,7vw,100px)}
+.chapter-ten-column{display:flex;flex-direction:column;justify-content:space-between;gap:clamp(12px,2vh,22px)}
+.chapter-ten-questions p,.chapter-ten-ending p{margin:0;font:inherit;line-height:1.8;letter-spacing:inherit}
+.chapter-ten-ending{border-top:1px solid var(--line);padding-top:clamp(14px,2.5vh,24px)}
+.chapter-ten-ending p+p{margin-top:.35em}
+.chapter-ten-ending strong{color:var(--seal);font-weight:600}
+@media(max-width:760px){.reader-book-chapter-ten{width:calc(100% - 52px)}.chapter-ten-questions{grid-template-columns:minmax(0,1fr);row-gap:8px}.chapter-ten-column{gap:8px}.chapter-ten-layout{gap:20px}.chapter-ten-ending{padding-top:17px}}
+@media(max-width:350px){.reader-book-chapter-ten{width:calc(100% - 40px)}}
 @media(min-width:761px){.library .chapter-index{grid-template-columns:repeat(4,minmax(0,1fr));column-gap:30px}}
 @media(max-width:760px){
   .library.page-width{padding-top:18px;padding-bottom:24px}

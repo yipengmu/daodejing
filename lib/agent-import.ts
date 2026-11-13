@@ -85,7 +85,7 @@ export async function createAgentImport(request: Request, db: PrismaClient, visi
   const document = await prepare(data.text, data.url);
   const tokenHash = digest(required('IDENTITY_HMAC_SECRET'), data.token);
   const result = await idempotent(db, request, visitor, data, async tx => {
-    const row = await tx.contentItem.create({ data: { chapterNumber: data.chapter, title: document.title, body: (document.summary || document.sections[0].paragraphs[0]).replace(/\*\*/g, '').replace(/^###\s+|^-\s+/gm, ''), anonymous: true, publicName: '一位共读者', sourceUrl: data.url || null, importData: document, importTokenHash: tokenHash, createdAt: now } });
+    const row = await tx.contentItem.create({ data: { chapterNumber: data.chapter, title: document.title, body: (document.summary || document.sections[0].paragraphs[0]).replace(/\*\*/g, '').replace(/^###\s+|^-\s+/gm, ''), contentType: 'AGENT_NOTES', anonymous: true, publicName: '一位共读者', sourceUrl: data.url || null, importData: document, importTokenHash: tokenHash, createdAt: now } });
     await audit(tx, `guest:${visitor}`, 'AGENT_IMPORT_PUBLISHED', row.id, { chapter: data.chapter });
     return { id: row.id };
   });

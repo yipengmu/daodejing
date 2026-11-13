@@ -39,11 +39,12 @@ function sectionHeading(title: string) {
   return { heading, time: time.join('｜') };
 }
 
-export function StructuredReading({ document }: { document: ImportDocument }) {
+export function StructuredReading({ document, kind = 'session' }: { document: ImportDocument; kind?: 'session' | 'agent-notes' | 'lead-reading' }) {
+  const isLeadReading = kind === 'lead-reading';
   return <div className="structured-reading">
-    {document.summary && <div className="reading-overview"><h2>共读摘要</h2>
+    {document.summary && <div className="reading-overview"><h2>{isLeadReading ? '领读提要' : kind === 'agent-notes' ? '共读纪要摘要' : '现场记录摘要'}</h2>
     <div className="structured-summary"><Emphasis text={document.summary}/></div></div>}
-    <nav className="structured-outline" aria-label="内容目录"><h2>这场共读</h2>{document.sections.map((section, index) => {
+    <nav className="structured-outline" aria-label="内容目录"><h2>{isLeadReading ? '领读目录' : kind === 'agent-notes' ? '共读纪要目录' : '现场记录目录'}</h2>{document.sections.map((section, index) => {
       const { heading, time } = sectionHeading(section.title);
       return <a href={`#reading-section-${index}`} key={index}><span>{String(index + 1).padStart(2, '0')}</span><div>{heading}{time && <small>{time}</small>}</div><ArrowRight size={15}/></a>;
     })}</nav>

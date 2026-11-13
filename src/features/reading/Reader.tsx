@@ -7,6 +7,16 @@ import type { Share } from '../../types';
 import { localState } from '../../services/storage';
 
 type Page = { start: number; end: number; text: string };
+function splitChapterTen(text: string) {
+  const clauses = text.match(/[^？]+？|[^；]+；|[^。]+。/gu) || [];
+  if (clauses.length !== 11 || clauses.slice(0, 6).some(line => !line.endsWith('？'))) return null;
+  return {
+    questions: clauses.slice(0, 6),
+    opening: clauses[6],
+    emphasis: clauses.slice(7, 10).join(''),
+    closing: clauses[10],
+  };
+}
 function paginate(text: string, measure: HTMLDivElement, width: number, height: number): Page[] {
   const chars = Array.from(text); const pages: Page[] = [];
   measure.style.width = `${width}px`;
@@ -34,6 +44,7 @@ export default function Reader() {
   const [menu, setMenu] = useState(false); const [panel, setPanel] = useState<'contents' | 'settings' | 'source' | null>(null);
   const shares = useResource<{ shares: Share[] }>(`/shares?chapter=${number}&sort=reads`);
   const page = pages[pageIndex];
+  const chapterTenBlocks = number === 10 && chapter ? splitChapterTen(chapter.text) : null;
 
   useLayoutEffect(() => {
     if (!chapter || !viewport.current || !measure.current) return;
@@ -76,10 +87,13 @@ export default function Reader() {
   }
   return <main className="reader-screen">
     <header className="reader-toolbar"><div className="reader-toolbar-start"><Link className="text-button reader-home-link" to="/" aria-label="回到读书首页"><ArrowLeft size={18}/><span>读书首页</span></Link><button className="text-button" onClick={() => setPanel('contents')}><List size={19}/><span>目录</span></button></div><span>第 {number} 章</span><div className="reader-menu-wrap"><button className="icon-button" aria-label="更多阅读选项" aria-expanded={menu} onClick={() => setMenu(!menu)}><MoreHorizontal/></button>{menu && <div className="popover"><button onClick={() => { setPanel('settings'); setMenu(false); }}>阅读设置</button><button onClick={() => { setPanel('source'); setMenu(false); }}>版本与来源</button></div>}</div></header>
-    <div className="reader-book">
+    <div className={`reader-book${number === 10 ? ' reader-book-chapter-ten' : ''}`}>
       <div className="reader-chapter-heading"><h1>{chapterTitle(number)}</h1><span className="chapter-reference">{chapter.section} · 第 {String(number).padStart(2, '0')} 章</span></div>
       <div className="reader-viewport" ref={viewport} onPointerDown={event => { if (event.target !== event.currentTarget && (event.target as Element).closest('a,button')) return; if (event.clientX < 24 || event.clientX > window.innerWidth - 24) return; pointer.current = { x: event.clientX, y: event.clientY }; }} onPointerUp={event => { const start = pointer.current; pointer.current = null; if (!start || window.getSelection()?.toString()) return; const dx = event.clientX - start.x, dy = event.clientY - start.y; if (Math.abs(dx) > 65 && Math.abs(dx) > Math.abs(dy) * 1.6) turn(dx < 0 ? 1 : -1); }}>
-        <div className="scripture" style={{ fontSize: font }} aria-label={`第 ${number} 章原文`}>{page?.text || chapter.text}</div>
+        {chapterTenBlocks && pages.length === 1 ? <div className="scripture chapter-ten-layout" style={{ fontSize: font }} aria-label={`第 ${number} 章原文`}>
+          <div className="chapter-ten-questions">{[chapterTenBlocks.questions.slice(0, 3), chapterTenBlocks.questions.slice(3)].map((column, columnIndex) => <div className="chapter-ten-column" key={columnIndex}>{column.map((line, index) => <p key={index}>{line}</p>)}</div>)}</div>
+          <div className="chapter-ten-ending"><p>{chapterTenBlocks.opening}</p><p><strong>{chapterTenBlocks.emphasis}</strong>{chapterTenBlocks.closing}</p></div>
+        </div> : <div className="scripture" style={{ fontSize: font }} aria-label={`第 ${number} 章原文`}>{page?.text || chapter.text}</div>}
         <div className="scripture measure" ref={measure} style={{ fontSize: font }} aria-hidden="true"/>
       </div>
       <div className="reader-pagination"><button className="icon-button" aria-label={pageIndex ? '上一页' : '上一章'} disabled={previousDisabled} onClick={() => turn(-1)}><ArrowLeft size={19}/></button><span aria-live="polite">{pageIndex + 1} / {pages.length || 1}<small>左右滑动翻页</small></span><button className="icon-button" aria-label={pageIndex < pages.length - 1 ? '下一页' : '下一章'} disabled={nextDisabled} onClick={() => turn(1)}><ArrowRight size={19}/></button></div>

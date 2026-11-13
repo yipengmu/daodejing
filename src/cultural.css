@@ -45,11 +45,11 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
 .library .book-intro { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 12px 0 32px; border-bottom: 3px double var(--ink); }
 .library .book-intro .intro-title { color: var(--ink); font-size: clamp(48px, 5.2vw, 74px); line-height: 1.2; letter-spacing: .12em; margin: 0; }
 .book-subtitle { color: var(--muted); font-family: var(--serif); font-size: 16px; line-height: 1.8; margin: 16px 0 0; }
-.teacher-intro { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 18px; align-items: start; max-width: 820px; margin: 24px 0 8px; padding: 18px 20px; border-left: 2px solid var(--seal); background: var(--paper-recessed); }
-.teacher-intro-mark { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid var(--seal); color: var(--seal); font-family: var(--serif); font-size: 20px; }
-.teacher-intro-eyebrow { margin: 0 0 4px; color: var(--muted); font-size: 10px; letter-spacing: .12em; }
-.teacher-intro h2 { margin: 0 0 5px; color: var(--ink); font-size: 18px; }
-.teacher-intro p:last-child { max-width: 680px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.8; }
+.teacher-intro { max-width: 980px; margin: 18px 0 2px; padding: 11px 16px; border-left: 2px solid var(--seal); background: var(--paper-recessed); }
+.teacher-intro-heading { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 2px; }
+.teacher-intro-heading h2 { margin: 0; color: var(--ink); font-size: 16px; }
+.teacher-intro-heading span { color: var(--muted); font-size: 11px; }
+.teacher-intro p:last-child { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .library .book-intro .book-imprint { display: block; flex-shrink: 0; font-family: var(--serif); font-size: 17px; letter-spacing: .16em; line-height: 1.5; color: var(--seal); border: 1px solid var(--seal); padding: 8px; }
 .library .continue-reading { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; margin: 0; padding: 24px 0; gap: 16px; }
 .library .continue-reading>svg:first-child { color: var(--seal); }
@@ -109,10 +109,11 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
   .library .book-intro { padding: 0 0 24px; gap: 16px; }
   .library .book-intro .intro-title { font-size: 48px; letter-spacing: .1em; }
   .book-subtitle { font-size: 14px; margin-top: 12px; }
-  .teacher-intro { grid-template-columns: 34px minmax(0, 1fr); gap: 12px; margin: 18px 0 4px; padding: 14px 12px; }
-  .teacher-intro-mark { width: 32px; height: 32px; font-size: 17px; }
-  .teacher-intro h2 { font-size: 16px; }
-  .teacher-intro p:last-child { font-size: 12px; }
+  .teacher-intro { margin: 14px 0 0; padding: 10px 12px; }
+  .teacher-intro-heading { gap: 7px; }
+  .teacher-intro-heading h2 { font-size: 15px; }
+  .teacher-intro-heading span { font-size: 10px; }
+  .teacher-intro p:last-child { font-size: 11px; line-height: 1.55; }
   .library .book-intro .book-imprint { font-size: 14px; padding: 8px; }
   .library .continue-reading { padding: 20px 0; }
   .library .continue-reading strong { font-size: 14px; }

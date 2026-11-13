@@ -14,11 +14,9 @@ export default function Library() {
   return <div className="library page-width">
     <div className="book-intro"><div className="book-title-block"><h1 className="intro-title">道德经</h1><p className="book-subtitle">一起读书，从一章开始。</p></div><span className="book-imprint" aria-hidden="true">公益<br/>共读</span></div>
     <section className="teacher-intro" aria-labelledby="teacher-intro-title">
-      <div className="teacher-intro-mark" aria-hidden="true">师</div>
       <div>
-        <p className="teacher-intro-eyebrow">法脉传承 · 公益共读</p>
-        <h2 id="teacher-intro-title">禅桥老师</h2>
-        <p>禅桥老师是本产品法脉传承的老师，也是“践行公益《道德经》”的发起人。禅桥寓意连接、破障与通透；我们以经典为师，在共读中体会经义，并把所学带回日常生活。</p>
+        <div className="teacher-intro-heading"><h2 id="teacher-intro-title">禅桥老师</h2><span>本产品法脉传承老师 · “践行公益《道德经》”发起人</span></div>
+        <p>禅桥寓意连接、破障与通透；在共读中以经典为师，把所学带回日常。</p>
       </div>
     </section>
     {progress && <Link className="continue-reading" to={`/read/${progress.chapter}`}><BookOpen size={23}/><div><span>继续上次阅读</span><strong>第 {progress.chapter} 章 · {chapterTitle(progress.chapter)}</strong></div><ArrowRight size={20}/></Link>}

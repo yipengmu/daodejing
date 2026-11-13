@@ -190,6 +190,7 @@ model ContentItem {
   publicAvatar  Int @default(0)
   sourceUrl     String?
   importData    Json?
+  contentType   String @default("FIELD_NOTE")
   importTokenHash String?
   gatheringId   String?
   dojoId        String?

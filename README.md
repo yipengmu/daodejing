@@ -24,7 +24,7 @@ npm run dev
 
 开发账号为 `reader@example.test` / `ReadTogether!2026`，只允许在本地数据库中创建。不会模拟短信、邮件或向页面返回测试验证码。注册与找回需要配置真实服务商；未配置时返回服务未开放。
 
-`npm run dev` 同时启动 API 和 Vite；前端支持 HMR，后端修改后需重启。阅读字号、文字位置保存在本机，分享草稿按账号隔离，退出会清除草稿。
+`npm run dev` 同时启动 API 和 Vite。前端通过 Vite HMR 更新；API 及其依赖文件由 `tsx watch` 监视并自动重启。若工作区所在磁盘/同步目录未可靠发送文件变更事件，可用 `VITE_USE_POLLING=true npm run dev` 开启 500ms 轮询（CPU 占用会略增）。阅读字号、文字位置保存在本机，分享草稿按账号隔离，退出会清除草稿。
 
 ## 已实现
 
@@ -89,6 +89,8 @@ npm run test:e2e
 浏览器测试自动启动隔离服务 4320，不复用开发数据库，包含桌面与手机两组旅程。本轮沙箱拒绝启动独立 Chrome，12 项 Playwright 测试未进入页面断言；内置浏览器已另行验证主要用户动线。GitHub Actions 提供 Linux Chromium 回归任务，尚未在远端执行。
 
 ## 维护
+
+新增或调整页面设计时，统一依据 [设计 Spec](docs/design-guidelines-spec.md)；阅读交互状态补充见 [移动端阅读体验 Spec](docs/mobile-reading-experience-spec.md)。
 
 正式数据库设计在 [MVP-1 数据库设计](docs/mvp-1-database-design.md)，Prisma schema 与增量迁移在 `prisma/`。`docs/database-schema-spec.md` 保留为未批准的历史预研，不能作为实现依据。
 

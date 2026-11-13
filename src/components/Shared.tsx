@@ -20,7 +20,7 @@ export function Status({ loading, error, empty, retry, children }: { loading?: b
 }
 export function ShareRow({ share }: { share: Share }) {
   return <article className="share-row" data-share-id={share.id}>
-    <div className="byline"><Avatar preset={share.avatar} anonymous={share.anonymous}/><div><span>{share.name}</span><small>{formatDate(share.createdAt)}</small></div>{share.status !== 'PUBLISHED' && <span className="badge">{share.status === 'HIDDEN' ? '已隐藏' : '已删除'}</span>}</div>
+    <div className="byline"><Avatar preset={share.avatar} anonymous={share.anonymous}/><div><span>{share.contentType === 'LEAD_READING' ? '平台领读' : share.contentType === 'AGENT_NOTES' ? '共读助手' : share.name}</span><small>{share.contentType === 'LEAD_READING' ? `领读类分享 · ${formatDate(share.createdAt)}` : share.contentType === 'AGENT_NOTES' ? `共读纪要 · ${formatDate(share.createdAt)}` : `现场记录 · ${formatDate(share.createdAt)}`}</small></div>{share.status !== 'PUBLISHED' && <span className="badge">{share.status === 'HIDDEN' ? '已隐藏' : '已删除'}</span>}</div>
     <Link to={`/shares/${share.id}`} className="share-title">{share.title || '读到这里，想到…'}<ArrowUpRight size={17}/></Link>
     <p className="share-excerpt">{share.body}</p>
     <div className="share-stats"><span>阅读 {share.views}</span><span><Heart size={14}/>{share.likes}</span><span><MessageCircle size={14}/>{share.comments}</span>{share.media.length > 0 && <span>{share.media.some(m => m.mime.startsWith('audio/')) ? '含音频' : '含图片'}</span>}</div>
