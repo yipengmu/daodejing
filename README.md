@@ -49,7 +49,7 @@ npm run dev
 | 来源检查 | `APP_ORIGIN` 为完整站点 origin；默认只接受同源写操作 |
 | 短信 | 阿里云 PNVS AccessKey、签名和模板；模板变量 `code=##code##`、`min=5`，服务商管理验证码 |
 | 邮件 | 腾讯云 SES 凭据、发件人、模板 ID；模板变量 `code`、`purpose` |
-| 媒体 | 腾讯云 COS 独立私有桶；CORS 允许本站 PUT/HEAD 及 Content-Type，禁止公共读。浏览器仅获取受限上传签名，读取经应用鉴权入口流式返回 |
+| 媒体 | 配有腾讯云 COS 时使用独立私有桶，CORS 允许本站 PUT/HEAD 及 Content-Type，禁止公共读；未配置 COS 的生产环境使用 PostgreSQL 私有 `MediaBlob`，按 2 MB 分块上传和读取。两种存储都经应用入口检查数据库显隐，不提供永久公开直链 |
 | 地图 | 高德 JS key、REST key 与安全码；域名白名单包含运行环境。安全码由 `/api/amap/_AMapService/` 代理注入，前端不暴露 REST key/安全码 |
 
 外部库首次初始化：

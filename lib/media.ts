@@ -6,10 +6,11 @@ import { parseBuffer } from 'music-metadata';
 import { ApiError } from './config';
 import { input, json } from './http';
 import { requireUser, type User } from './auth';
-import { localStorageEnabled, objectSize, readObject, uploadUrl, writeObject } from './providers/storage';
+import { databaseStorageEnabled, localStorageEnabled, objectSize, readObject, uploadUrl, writeObject } from './providers/storage';
 import { rateLimit } from './persistence';
 
 export const mediaFormats: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'audio/mpeg': 'mp3', 'audio/wav': 'wav' };
+const mediaChunkSize = 2 * 1024 * 1024;
 export function mediaLimit(mime: string) { return mime.startsWith('image/') ? 8 * 1024 * 1024 : 20 * 1024 * 1024; }
 function cleanMp3(buffer: Buffer) {
   let start = 0, end = buffer.length;
@@ -57,15 +58,30 @@ export async function beginUpload(request: Request, db: PrismaClient, user: User
   if (data.size > mediaLimit(data.mime)) throw new ApiError(400, data.mime.startsWith('image/') ? '图片不能超过 8 MB' : '音频不能超过 20 MB');
   await rateLimit(db, 'media-upload', current.id, 30, 3600, now);
   const objectKey = `users/${current.id}/${randomUUID()}.${mediaFormats[data.mime]}`;
-  const local = localStorageEnabled(); const target = local ? null : await uploadUrl(objectKey, data.mime);
+  const local = localStorageEnabled(); const database = databaseStorageEnabled(); const target = local || database ? null : await uploadUrl(objectKey, data.mime);
   const asset = await db.mediaAsset.create({ data: { ownerId: current.id, objectKey, mime: data.mime, size: data.size } });
-  return json({ id: asset.id, uploadUrl: target || `/api/media/${asset.id}/upload`, mime: data.mime, method: 'PUT' }, 201);
+  return json({ id: asset.id, uploadUrl: target || `/api/media/${asset.id}/upload`, mime: data.mime, method: 'PUT', ...(database ? { chunkSize: mediaChunkSize } : {}) }, 201);
 }
 export async function localUpload(request: Request, db: PrismaClient, id: string, user: User | null) {
-  const current = requireUser(user); if (!localStorageEnabled()) throw new ApiError(404, '上传地址不可用');
+  const current = requireUser(user); const database = databaseStorageEnabled(); if (!localStorageEnabled() && !database) throw new ApiError(404, '上传地址不可用');
   const asset = await db.mediaAsset.findUnique({ where: { id } });
   if (!asset || asset.ownerId !== current.id || asset.status !== 'PENDING') throw new ApiError(403, '文件上传权限无效');
   const data = Buffer.from(await request.arrayBuffer());
+  if (database) {
+    const rawOffset = new URL(request.url).searchParams.get('offset');
+    if (!rawOffset || !/^\d+$/.test(rawOffset)) throw new ApiError(400, '缺少上传位置');
+    const offset = Number(rawOffset);
+    if (!Number.isSafeInteger(offset) || data.length < 1 || data.length > mediaChunkSize || offset + data.length > asset.size) throw new ApiError(400, '上传分块无效');
+    await db.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM "MediaAsset" WHERE id = ${id} FOR UPDATE`;
+      const existing = await tx.mediaBlob.findUnique({ where: { mediaId: id } });
+      const previous = existing ? Buffer.from(existing.data) : Buffer.alloc(0);
+      if (previous.length !== offset) throw new ApiError(409, '上传位置已改变，请重新上传');
+      const combined = Buffer.concat([previous, data]);
+      await tx.mediaBlob.upsert({ where: { mediaId: id }, create: { mediaId: id, data: combined }, update: { data: combined } });
+    });
+    return json({ ok: true, received: offset + data.length });
+  }
   if (data.length !== asset.size || data.length > mediaLimit(asset.mime)) throw new ApiError(400, '文件大小与申报不一致');
   await writeObject(asset.objectKey, data, asset.mime); return json({ ok: true });
 }
@@ -73,6 +89,14 @@ export async function completeUpload(db: PrismaClient, id: string, user: User | 
   const current = requireUser(user); const asset = await db.mediaAsset.findUnique({ where: { id } });
   if (!asset || asset.ownerId !== current.id || asset.status === 'DELETED' || asset.status === 'HIDDEN') throw new ApiError(403, '附件不可用');
   if (asset.status === 'READY') return json({ id, mime: asset.mime });
+  const blob = await db.mediaBlob.findUnique({ where: { mediaId: id } });
+  if (databaseStorageEnabled()) {
+    if (!blob || blob.data.length !== asset.size) throw new ApiError(400, '上传不完整或文件大小不一致');
+    const sanitized = await sanitizeMedia(Buffer.from(blob.data), asset.mime);
+    if (sanitized.length > mediaLimit(asset.mime)) throw new ApiError(400, '处理后的文件过大');
+    await db.$transaction([db.mediaBlob.update({ where: { mediaId: id }, data: { data: Uint8Array.from(sanitized) } }), db.mediaAsset.update({ where: { id }, data: { size: sanitized.length, status: 'READY' } })]);
+    return json({ id, mime: asset.mime });
+  }
   if (await objectSize(asset.objectKey) !== asset.size) throw new ApiError(400, '上传不完整或文件大小不一致');
   const object = await readObject(asset.objectKey); if (!object.ok) throw new ApiError(400, '无法验证文件');
   const sanitized = await sanitizeMedia(Buffer.from(await object.arrayBuffer()), asset.mime);
@@ -86,9 +110,27 @@ export async function serveMedia(request: Request, db: PrismaClient, id: string,
   const published = asset?.content?.status === 'PUBLISHED';
   const ownUnpublished = asset && !asset.contentId && user?.id === asset.ownerId;
   if (!asset || asset.status !== 'READY' || (!published && !ownUnpublished)) throw new ApiError(404, '媒体不存在或已停止公开');
-  const object = await readObject(asset.objectKey, request.headers.get('range'));
+  const blob = await db.mediaBlob.findUnique({ where: { mediaId: id } });
+  const object = blob ? databaseMediaResponse(Buffer.from(blob.data), request.headers.get('range')) : await readObject(asset.objectKey, request.headers.get('range'));
   if (!object.ok && object.status !== 416) throw new ApiError(502, '媒体暂时无法读取');
   const headers = new Headers({ 'Content-Type': asset.mime, 'Cache-Control': 'private, no-store, max-age=0', 'X-Content-Type-Options': 'nosniff', 'Content-Disposition': `inline; filename="${id}.${mediaFormats[asset.mime]}"`, 'Accept-Ranges': 'bytes' });
   for (const key of ['content-length', 'content-range']) { const value = object.headers.get(key); if (value) headers.set(key, value); }
   return new Response(request.method === 'HEAD' ? null : object.body, { status: object.status, headers });
+}
+
+function databaseMediaResponse(data: Buffer, range: string | null) {
+  const headers = new Headers({ 'Accept-Ranges': 'bytes' });
+  let start = 0, end = data.length - 1;
+  if (range) {
+    const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+    if (!match || (!match[1] && !match[2])) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${data.length}` } });
+    if (match[1]) { start = Number(match[1]); if (match[2]) end = Math.min(end, Number(match[2])); }
+    else start = Math.max(0, data.length - Number(match[2]));
+  }
+  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= data.length) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${data.length}` } });
+  end = Math.min(end, start + mediaChunkSize - 1);
+  const partial = !!range || end < data.length - 1;
+  headers.set('Content-Length', String(end - start + 1));
+  if (partial) headers.set('Content-Range', `bytes ${start}-${end}/${data.length}`);
+  return new Response(new Uint8Array(data.subarray(start, end + 1)), { status: partial ? 206 : 200, headers });
 }

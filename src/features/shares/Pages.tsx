@@ -77,9 +77,16 @@ function ComposeBody() {
     try { if (media.length + files.length > 6) throw new Error('每篇分享最多添加六个附件。');
       for (const file of Array.from(files)) {
         const mime = file.type === 'audio/x-wav' ? 'audio/wav' : file.type || (/\.mp3$/i.test(file.name) ? 'audio/mpeg' : '');
-        const result = await post<{ id: string; uploadUrl: string }>('/media/sign-upload', { mime, size: file.size });
-        const response = await fetch(result.uploadUrl, { method: 'PUT', headers: { 'Content-Type': mime }, body: file, credentials: result.uploadUrl.startsWith('/') ? 'same-origin' : 'omit' });
-        if (!response.ok) throw new Error('上传失败，请重试。');
+        const result = await post<{ id: string; uploadUrl: string; chunkSize?: number }>('/media/sign-upload', { mime, size: file.size });
+        if (result.chunkSize) {
+          for (let offset = 0; offset < file.size; offset += result.chunkSize) {
+            const response = await fetch(`${result.uploadUrl}?offset=${offset}`, { method: 'PUT', headers: { 'Content-Type': mime }, body: file.slice(offset, offset + result.chunkSize), credentials: 'same-origin' });
+            if (!response.ok) throw new Error('上传失败，请重试。');
+          }
+        } else {
+          const response = await fetch(result.uploadUrl, { method: 'PUT', headers: { 'Content-Type': mime }, body: file, credentials: result.uploadUrl.startsWith('/') ? 'same-origin' : 'omit' });
+          if (!response.ok) throw new Error('上传失败，请重试。');
+        }
         await post(`/media/${result.id}/complete`); setMedia(items => [...items, { id: result.id, mime }]);
       }
     } catch (e: any) { setError(e.message); } finally { setUploading(false); }

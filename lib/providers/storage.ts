@@ -5,6 +5,7 @@ import { ApiError, isProduction } from '../config';
 
 const localRoot = () => path.resolve(process.env.LOCAL_MEDIA_DIR || '.local/media');
 export function localStorageEnabled() { return !isProduction() && !process.env.TENCENT_COS_BUCKET; }
+export function databaseStorageEnabled() { return isProduction() && !process.env.TENCENT_COS_BUCKET; }
 function objectPath(key: string) {
   if (!/^[a-zA-Z0-9/_-]+\.[a-z0-9]+$/.test(key)) throw new ApiError(400, '文件地址无效');
   const resolved = path.resolve(localRoot(), key);

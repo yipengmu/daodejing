@@ -285,8 +285,16 @@ model MediaAsset {
   createdAt DateTime @default(now())
   owner     Account @relation(fields: [ownerId], references: [id], onDelete: Restrict)
   content   ContentItem? @relation(fields: [contentId], references: [id], onDelete: Restrict)
+  blob      MediaBlob?
   @@index([ownerId, status])
   @@index([contentId, status])
+}
+
+// Private database-backed media. Metadata stays in MediaAsset so list queries never load bytes.
+model MediaBlob {
+  mediaId String @id
+  data    Bytes
+  media   MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
 }
 
 model Feedback {
