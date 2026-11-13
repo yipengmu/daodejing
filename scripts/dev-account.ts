@@ -1,5 +1,5 @@
 import { setupRuntime } from './runtime';
-await setupRuntime();
+await setupRuntime({ localDevelopment: true });
 if (process.env.NODE_ENV === 'production' || process.env.LOCAL_DATABASE !== 'true') throw new Error('开发账号只能在本机数据库中创建');
 const { prisma, closeDatabase } = await import('../lib/db');
 const { hashPassword, digest } = await import('@daodejing/auth-kit');

@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { setupRuntime, command } from './runtime';
 
-await setupRuntime();
+await setupRuntime({ localDevelopment: true });
 if (process.env.LOCAL_DATABASE !== 'true') console.log('使用配置的外部数据库；请先手动执行 db:migrate 和 db:seed。');
 await command('npm', ['run', 'data:build']);
 const children = [

@@ -90,6 +90,7 @@ model Chapter {
   channel     ChapterChannel?
   shares      ContentItem[]
   gatherings  GatheringSubmission[]
+  reads       ChapterRead[]
 }
 
 model ChapterText {
@@ -258,6 +259,19 @@ model Exposure {
   createdAt   DateTime @default(now())
   content     ContentItem @relation(fields: [contentId], references: [id], onDelete: Restrict)
   @@unique([contentId, visitorHash, readDay])
+}
+
+model ChapterRead {
+  id            String   @id @default(cuid())
+  chapterNumber Int
+  readerKey     String
+  visitorHash   String
+  readDay       String   @db.VarChar(10)
+  createdAt     DateTime @default(now())
+  chapter       Chapter  @relation(fields: [chapterNumber], references: [number], onDelete: Restrict)
+  @@unique([chapterNumber, readerKey, readDay])
+  @@unique([chapterNumber, visitorHash, readDay])
+  @@index([chapterNumber, createdAt])
 }
 
 model MediaAsset {

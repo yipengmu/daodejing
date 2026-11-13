@@ -13,7 +13,7 @@ npm run dev
 
 打开 http://127.0.0.1:4317 ，API 为 http://127.0.0.1:4318/api/health 。可用 `WEB_PORT`、`API_PORT` 改端口。首次启动自动导入用户提供的 81 章文本与 9 条杭州地点，不生成虚构分享。
 
-未设置外部 `DATABASE_URL` 时使用 PGlite（PostgreSQL WASM），数据保存在忽略提交的 `.local/pglite/`，上传文件在 `.local/media/`；关闭后重启会保留。自动生成的开发密钥在 `.local/runtime.env`，仅供本地使用。PGlite 一个目录只允许一个进程打开；开发服务器运行时不要另开数据库 CLI。迁移自动应用并校验文件摘要，已应用的迁移不能原地修改。
+`npm run dev` 默认使用 PGlite（PostgreSQL WASM），即使 `.env` 配有外部 `DATABASE_URL` 也不会连到外部数据库；本地数据保存在忽略提交的 `.local/pglite/`，上传文件在 `.local/media/`，关闭后重启会保留。自动生成的开发密钥在 `.local/runtime.env`，仅供本地使用。只有明确要让开发服务器连接 `.env` 中的外部数据库时，才运行 `DEV_USE_EXTERNAL_DATABASE=true npm run dev`；该模式必须另外配置本项目的 `JWT_SECRET` 和 `IDENTITY_HMAC_SECRET`。PGlite 一个目录只允许一个进程打开；开发服务器运行时不要另开数据库 CLI。迁移自动应用并校验文件摘要，已应用的迁移不能原地修改。
 
 本地账号需要显式创建。先停止开发服务器，执行后重新启动：
 

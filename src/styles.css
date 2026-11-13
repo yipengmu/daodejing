@@ -47,6 +47,8 @@
 .library .chapter-part>h3{font-family:var(--serif);font-size:17px;letter-spacing:2px;color:#68735f;margin:0;padding:0 0 4px;border-bottom:1px solid var(--line)}
 .library .chapter-link{padding:12px 0}
 .library .chapter-link small{font-size:9px;color:#a0a691;opacity:.72}
+.library .chapter-heat{width:9px;height:9px;flex:0 0 9px;margin-left:auto;border:1px solid rgb(61 143 135 / .22);border-radius:50%;background-color:rgb(61 143 135 / var(--heat-intensity));transition:background-color .25s ease,border-color .25s ease}
+.library .chapter-link>svg{margin-left:0}
 .reader-toolbar-start{display:flex;align-items:center;gap:20px}
 .reader-home-link{white-space:nowrap}
 /* Chapter 10 specimen: keep the source order while grouping parallel questions for scanning. */

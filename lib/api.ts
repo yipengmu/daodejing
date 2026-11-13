@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { z, ZodError } from 'zod';
 import { digest, equalDigest } from '@daodejing/auth-kit';
 import { ApiError, secrets } from './config';
-import { cookie, cookies, input, json, cleanText, pageNumber } from './http';
+import { cookie, cookies, input, json, cleanText, pageNumber, chapterNumber } from './http';
 import { authHandler, session, requireUser, requireOwner, profile } from './auth';
 import { cloudVerification, type VerificationProvider } from './providers/verification';
 import { audit, idempotent, rateLimit } from './persistence';
@@ -12,6 +12,7 @@ import { listPlaces, getPlace, searchPoi, nearbyPoi, proxyAmap, saveDojo, placeD
 import { createGathering, getGathering, listGatherings, updateGathering } from './gatherings';
 import { createAgentImport, withdrawAgentImport, type ImportDocument } from './agent-import';
 import { beginUpload, localUpload, completeUpload, serveMedia } from './media';
+import { chapterHeat, issueChapterReadTicket, recordChapterRead } from './chapter-heat';
 
 export function createApi(options: { db: PrismaClient; verification?: VerificationProvider; clock?: () => Date; prepareImport?: (text: string, url: string) => Promise<ImportDocument> }) {
   const db = options.db; const providers = options.verification || cloudVerification;
@@ -41,6 +42,7 @@ export function createApi(options: { db: PrismaClient; verification?: Verificati
       const gatheringMatch = /^\/gatherings\/([^/]+)$/.exec(path);
       const mediaMatch = /^\/media\/([^/]+)(?:\/(upload|complete))?$/.exec(path);
       const commentMatch = /^\/comments\/([^/]+)$/.exec(path);
+      const chapterReadMatch = /^\/chapters\/(\d+)\/(read-ticket|read)$/.exec(path);
 
       if (path.startsWith('/auth/')) response = await authHandler(path.slice(6), request, db, providers, user, ip, now);
       else if (path === '/config' && method === 'GET') response = json({ amapKey: process.env.AMAP_WEB_KEY || null, mapSearch: !!process.env.AMAP_REST_KEY, sms: !!process.env.ALIBABA_PNVS_TEMPLATE_CODE && !!process.env.ALIBABA_CLOUD_ACCESS_KEY_ID, email: !!process.env.TENCENT_SES_TEMPLATE_ID && !!process.env.TENCENTCLOUD_SECRET_ID });
@@ -48,6 +50,13 @@ export function createApi(options: { db: PrismaClient; verification?: Verificati
       else if (/^\/agent-imports\/[^/]+\/withdraw$/.test(path) && method === 'POST') response = await withdrawAgentImport(request, db, path.split('/')[2], user);
       else if (path === '/shares' && method === 'GET') response = json(await listShares(db, user, url.searchParams));
       else if (path === '/shares' && method === 'POST') response = await createShare(request, db, user, now);
+      else if (path === '/chapter-heat' && method === 'GET') { await rateLimit(db, 'chapter-heat', visitor, 300, 3600, now); response = await chapterHeat(db); }
+      else if (chapterReadMatch) {
+        const chapter = chapterNumber.parse(chapterReadMatch[1]); const action = chapterReadMatch[2];
+        if (action === 'read-ticket' && method === 'GET') { await rateLimit(db, 'chapter-read-ticket', visitor, 300, 3600, now); response = await issueChapterReadTicket(db, chapter, visitor, now); }
+        else if (action === 'read' && method === 'POST') response = await recordChapterRead(request, db, chapter, user, visitor, now);
+        else throw new ApiError(405, '请求方式不受支持');
+      }
       else if (shareMatch) {
         const [, id, action] = shareMatch;
         if (!action && method === 'GET') response = json(await getShare(db, id, user, visitor, now));

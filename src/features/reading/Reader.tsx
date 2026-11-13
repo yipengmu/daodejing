@@ -5,6 +5,7 @@ import { chapters, chapterTitle, edition, readProgress } from './Library';
 import { useResource } from '../../hooks';
 import type { Share } from '../../types';
 import { localState } from '../../services/storage';
+import { post } from '../../services/api';
 
 type Page = { start: number; end: number; text: string };
 function splitChapterTen(text: string) {
@@ -45,6 +46,26 @@ export default function Reader() {
   const shares = useResource<{ shares: Share[] }>(`/shares?chapter=${number}&sort=reads`);
   const page = pages[pageIndex];
   const chapterTenBlocks = number === 10 && chapter ? splitChapterTen(chapter.text) : null;
+
+  useEffect(() => {
+    if (!chapter) return;
+    let active = true, timer: ReturnType<typeof setTimeout> | undefined, ticket: string | null = null, sent = false;
+    const schedule = () => {
+      if (timer) clearTimeout(timer);
+      if (!ticket || sent || document.visibilityState !== 'visible') return;
+      timer = setTimeout(() => {
+        if (!active || sent) return;
+        sent = true;
+        post(`/chapters/${number}/read`, { ticket }).catch(() => { sent = false; });
+      }, 5100);
+    };
+    fetch(`/api/chapters/${number}/read-ticket`, { credentials: 'same-origin' })
+      .then(response => response.json())
+      .then(result => { if (active) { ticket = result.data?.ticket || null; schedule(); } })
+      .catch(() => {});
+    document.addEventListener('visibilitychange', schedule);
+    return () => { active = false; if (timer) clearTimeout(timer); document.removeEventListener('visibilitychange', schedule); };
+  }, [number, chapter]);
 
   useLayoutEffect(() => {
     if (!chapter || !viewport.current || !measure.current) return;
