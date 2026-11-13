@@ -44,7 +44,7 @@ npm run dev
 
 | 能力 | 配置与要求 |
 | --- | --- |
-| 数据库 | `DATABASE_URL` 为独立 Neon/PostgreSQL 连接，`DATABASE_URL_UNPOOLED` 为迁移直连；先确认目标环境再执行下方迁移 |
+| 数据库 | `DATABASE_URL` 为独立 Neon/PostgreSQL 连接；Vercel 运行时未设置时可使用本项目 Neon 集成的 `DAODEJING_DATABASE_URL`。`DATABASE_URL_UNPOOLED` 为迁移直连；先确认目标环境再执行下方迁移 |
 | 会话 | 随机、独立的 `JWT_SECRET`、`IDENTITY_HMAC_SECRET`；生产环境不生成默认密钥。身份 HMAC 密钥变更需要专项迁移，不能直接轮换 |
 | 来源检查 | `APP_ORIGIN` 为完整站点 origin；默认只接受同源写操作 |
 | 短信 | 阿里云 PNVS AccessKey、签名和模板；模板变量 `code=##code##`、`min=5`，服务商管理验证码 |

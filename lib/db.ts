@@ -1,5 +1,8 @@
 import './config';
 import { PrismaClient } from '@prisma/client';
+// Vercel's Neon integration prefixes this project's connection URL.
+// An explicitly configured DATABASE_URL always takes precedence.
+process.env.DATABASE_URL ||= process.env.DAODEJING_DATABASE_URL;
 const globalDb = globalThis as unknown as { ddjPrisma?: PrismaClient; ddjClose?: () => Promise<void> };
 const local = process.env.LOCAL_DATABASE === 'true';
 if (local && process.env.NODE_ENV === 'production') throw new Error('生产环境必须使用独立 PostgreSQL，不能启用本地数据库');
