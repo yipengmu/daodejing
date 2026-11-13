@@ -20,7 +20,7 @@
 | 共读 | GatheringSubmission | 单章节、唯一领读人名称快照、服务端时间、提交者；地点可空，也可关联固定道场或专属临时地点；重试幂等，不合并其他提交 |
 | 分享 | ContentItem | 单章节、正文、作者、公开名称/匿名快照、可选来源/记录/道场、PUBLISHED/HIDDEN/DELETED；关联记录必须同章且有权使用 |
 | 互动 | ContentLike、ContentComment、ContentView、Exposure、ChapterRead | 爱心每账号/分享唯一；评论纯文本单层；所有公开查询回查父分享状态；分享阅读与章节阅读按访客/读者键、上海日期唯一，曝光独立记录；目录仅接收服务端计算的强度值 |
-| 媒体 | MediaAsset | 独立存储对象键；上传者、类型、大小、PENDING/READY/HIDDEN/DELETED；可绑定一个分享；每次读取检查分享和资产状态；不保存签名 URL |
+| 媒体 | MediaAsset、MediaBlob | MediaAsset 保存上传者、对象键、类型、大小、PENDING/READY/HIDDEN/DELETED 及可选分享关系；MediaBlob 与资产一对一，仅在未配置 COS 的云环境保存私有 BYTEA，不进入列表 DTO。浏览器分块上传，受控读取按需查询字节范围；每次读取仍检查分享和资产状态，不保存签名 URL |
 | 建议 | Feedback | 游客提交 accountId 可空；登录关联账号；保存原始建议、提交时间和状态；仅提交者/管理员可访问其记录，不公开建议正文 |
 | 运维 | AuditEvent、IdempotencyRecord | 关键变更追加审计；幂等键绑定账号/访客、动作和请求哈希，同键不同内容返回冲突 |
 
