@@ -6,7 +6,7 @@ test('现场音频位于封面与纪要之间，按需加载且可播放定位',
   await page.goto('/shares/browser-audio-fixture');
   const player = page.locator('.share-audio audio');
   await expect(player).toHaveCount(1);
-  await expect(player).toHaveAttribute('preload', 'metadata');
+  await expect(player).toHaveAttribute('preload', 'none');
   await expect(page.locator('.share-cover + .share-audio + .structured-reading')).toHaveCount(1);
   await expect(page.locator('.media-gallery audio')).toHaveCount(0);
   await expect(player).toHaveAttribute('src', /^\/api\/media\//);

@@ -11,4 +11,5 @@ if (content.chapters.length !== 81 || new Set(content.chapters.map((c: any) => c
 if (content.chapters.some((c: any) => !c.commentary?.length)) throw new Error('河上公古注须完整覆盖 81 章');
 await mkdir(new URL('../src/data/', import.meta.url), { recursive: true });
 await writeFile(new URL('../src/data/content.json', import.meta.url), JSON.stringify(content));
+await writeFile(new URL('../src/data/chapter-index.json', import.meta.url), JSON.stringify(content.chapters.map((chapter: { number: number; text: string }) => ({ number: chapter.number, title: chapter.text.split(/[，；。！？]/)[0], excerpt: chapter.text.slice(0, 45) }))));
 console.log('已生成 81 章阅读数据，包含用户提供经文和有来源的河上公古注。');
