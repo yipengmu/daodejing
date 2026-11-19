@@ -24,8 +24,9 @@ export function ShareAudio({ id, title, index, count, name, cues, active, onPlay
   const [playing, setPlaying] = useState(false);
   const [cue, setCue] = useState<string>();
   const hasCues = !!cues?.length;
-  const showPanel = active && started && !failed;
-  const docked = showPanel && aboveViewport;
+  const captionsVisible = hasCues && showCues && !failed;
+  const following = captionsVisible && active && started;
+  const docked = following && aboveViewport;
   const label = name && name !== '分享音频' ? name : count > 1 ? `现场音频 ${index + 1}` : '现场音频';
 
   useEffect(() => {
@@ -73,7 +74,7 @@ export function ShareAudio({ id, title, index, count, name, cues, active, onPlay
     audio.current?.focus({ preventScroll: true });
   }
 
-  return <section ref={section} className="share-audio" aria-label={label}>
+  return <section ref={section} className="share-audio" aria-label={label} data-follow={following || undefined}>
     <div className="share-audio-label">
       <span className="share-audio-icon"><Headphones size={22} aria-hidden="true"/></span>
       <h2>{label}</h2>
@@ -99,14 +100,15 @@ export function ShareAudio({ id, title, index, count, name, cues, active, onPlay
       </audio>
       {failed && <div className="share-audio-error" role="status"><span>音频暂时无法播放</span><button type="button" onClick={() => { setFailed(false); audio.current?.load(); }}><RotateCcw size={14} aria-hidden="true"/>重新加载</button></div>}
     </div>
-    {hasCues && showCues && !failed && <div className="share-audio-cue-slot">
+    {captionsVisible && <div className="share-audio-cue-slot">
       <div className="share-audio-cue" data-docked={docked || undefined}>
         <button className="share-audio-dock-button" type="button" onClick={togglePlayback} aria-label={playing ? '暂停音频' : '继续播放音频'}>
           {playing ? <Pause size={18} aria-hidden="true"/> : <Play size={18} aria-hidden="true"/>}
         </button>
-        <p className="share-audio-cue-text" aria-label="随听提要">
-          {showPanel ? cue ?? '当前片段暂无提要' : '播放时显示随听提要'}
-        </p>
+        <div className="share-audio-cue-copy">
+          <span className="share-audio-dock-label">随听提要</span>
+          <p className="share-audio-cue-text">{following ? cue ?? '当前片段暂无提要' : '播放时显示随听提要'}</p>
+        </div>
         <button className="share-audio-dock-button" type="button" onClick={returnToPlayer} aria-label="返回播放器" title="返回播放器"><ArrowUp size={18} aria-hidden="true"/></button>
       </div>
     </div>}

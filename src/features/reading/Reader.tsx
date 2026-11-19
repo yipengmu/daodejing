@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import { ArrowLeft, ArrowRight, List, MoreHorizontal, Pencil, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, List, MoreHorizontal, X } from 'lucide-react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { chapters, chapterTitle, edition, readProgress } from './Library';
 import { localState } from '../../services/storage';
@@ -7,7 +7,6 @@ import { post } from '../../services/api';
 import { addAnnotation, changeAnnotation, editGuestAnnotation } from '../../services/readingAnnotations';
 import { useSession } from '../../app/context';
 import { matchesAnnotation, type AnnotationAnchor } from '../../../shared/reading-annotations';
-import { Channel } from '../shares/Pages';
 import { AnnotationEditor, AnnotationFeed, SelectionActions, readPressedClause, readTextSelection, renderAnnotatedText, useChapterAnnotations, type ReaderAnnotation, type TextSelection } from './Annotations';
 import './annotations.css';
 
@@ -115,7 +114,6 @@ export default function Reader() {
   const [selection, setSelection] = useState<TextSelection | null>(null);
   const [editor, setEditor] = useState<{ note: AnnotationAnchor | ReaderAnnotation; accountId: string | null } | null>(null);
   const [sentencePicker, setSentencePicker] = useState(false);
-  const [channelComments, setChannelComments] = useState(() => new URLSearchParams(location.search).get('panel') === 'channel');
   const [located, setLocated] = useState<AnnotationAnchor | null>(null);
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
   const enteredChannel = new URLSearchParams(location.search).get('panel') === 'channel';
@@ -366,23 +364,8 @@ export default function Reader() {
                 })}
               </div>
             : <>
-            <div className="tabs reader-comment-tabs" role="tablist" aria-label="评论内容">
-              <button role="tab" aria-selected={!channelComments} className={!channelComments ? 'active' : ''} onClick={() => setChannelComments(false)}>原文评论</button>
-              <button role="tab" aria-selected={channelComments} className={channelComments ? 'active' : ''} onClick={() => setChannelComments(true)}>本章频道</button>
-            </div>
-            {!channelComments
-              ? <AnnotationFeed chapter={number} edition={edition.id} accountId={accountId} {...annotationState} characters={characters}
-                  chooseSentence={() => setSentencePicker(true)} locate={locate} edit={openEditor} change={updateAnnotation} refresh={annotationState.retry}/>
-              : <section aria-labelledby="reader-channel-shares">
-            <div className="reader-channel-heading">
-              <h2 id="reader-channel-shares">本章频道</h2>
-              <div className="reader-channel-actions">
-                <Link className="text-button" to={`/compose?chapter=${number}&from=reader`}>新建领读分享</Link>
-                <Link className="button primary" to={`/agent/import?chapter=${number}&from=reader`}><Pencil size={16}/>共修上传</Link>
-              </div>
-            </div>
-            <Channel embedded chapterNumber={number}/>
-          </section>}
+            <AnnotationFeed chapter={number} edition={edition.id} accountId={accountId} {...annotationState} characters={characters}
+              chooseSentence={() => setSentencePicker(true)} locate={locate} edit={openEditor} change={updateAnnotation} refresh={annotationState.retry}/>
           </>)}
         </div>
       </>}

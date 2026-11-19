@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { PencilLine, Underline, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { ShareRow } from '../../components/Shared';
+import type { Share } from '../../types';
+import { chapterChannelPath } from './channelPath';
 import { ANNOTATION_BODY_LIMIT, matchesAnnotation, type AnnotationAnchor, type AnnotationDraft, type PublicAnnotation, type SavedAnnotation } from '../../../shared/reading-annotations';
-import { ApiError, api } from '../../services/api';
+import { ApiError, api, post } from '../../services/api';
 import { myAnnotations, onAnnotations, pendingAnnotations, retryAnnotationSync } from '../../services/readingAnnotations';
 
 export type ReaderAnnotation = AnnotationDraft & { version?: number; published: boolean };
@@ -200,10 +203,33 @@ export function AnnotationFeed({ chapter, edition, accountId, loading, notes, er
 }) {
   const [busy, setBusy] = useState<string>();
   const [changeError, setChangeError] = useState('');
+  const [retry, setRetry] = useState(0);
   const [page, setPage] = useState(0);
+  const [shares, setShares] = useState<Share[]>([]);
+  const listRef = useRef<HTMLUListElement>(null);
+  useEffect(() => {
+    const observer = new IntersectionObserver(entries => entries.filter(entry => entry.isIntersecting).forEach(entry => {
+      const id = (entry.target as HTMLElement).dataset.shareId;
+      if (id) void post(`/shares/${id}/exposure`).catch(() => {});
+      observer.unobserve(entry.target);
+    }), { threshold: 0.5 });
+    listRef.current?.querySelectorAll('[data-share-id]').forEach(item => observer.observe(item));
+    return () => observer.disconnect();
+  }, [shares]);
+  const [shareError, setShareError] = useState('');
+  useEffect(() => {
+    const controller = new AbortController();
+    async function load() {
+      try {
+        const all: Share[] = []; let index = 0; let more = true;
+        while (more) { const result = await api<{ shares: Share[]; hasMore: boolean }>(`/shares?chapter=${chapter}&sort=latest&page=${index++}`, { signal: controller.signal }); all.push(...result.shares); more = result.hasMore; }
+        setShares(all); setShareError('');
+      } catch { if (!controller.signal.aborted) setShareError('暂时无法读取本章分享'); }
+    }
+    void load(); return () => controller.abort();
+  }, [chapter, retry]);
   const [publicPages, setPublicPages] = useState<PublicAnnotationPage[]>([]);
   const [publicError, setPublicError] = useState('');
-  const [retry, setRetry] = useState(0);
   const pending = !!accountId && notes.some(note => note.version === undefined);
   const publicLoading = !publicPages[page] && !publicError;
   useEffect(() => {
@@ -222,12 +248,17 @@ export function AnnotationFeed({ chapter, edition, accountId, loading, notes, er
     return () => request.abort();
   }, [chapter, edition, page, retry]);
 
+  useEffect(() => { if (publicPages[page]?.hasMore) setPage(value => value + 1); }, [publicPages, page]);
+
   const publicNotes = new Map(publicPages.flatMap(result => result.annotations.map(note => [note.id, note] as const)));
   const entries: AnnotationEntry[] = notes.map(note => ({ owned: true, note }));
   for (const note of publicNotes.values()) {
     if (matchesAnnotation(note, characters)) entries.push({ owned: false, note });
   }
-  entries.sort((a, b) => a.note.start - b.note.start || a.note.end - b.note.end);
+  const combined = [
+    ...entries.map(entry => ({ kind: 'annotation' as const, entry, time: entry.note.updatedAt || '' })),
+    ...shares.map(share => ({ kind: 'share' as const, share, time: share.updatedAt || share.createdAt })),
+  ].sort((a, b) => b.time.localeCompare(a.time));
 
   async function update(note: ReaderAnnotation, action: 'publish' | 'unpublish' | 'remove') {
     if (action === 'publish' && !window.confirm('公开后，所有读者都能在本章看到你的昵称和这条评论。确定公开？')) return;
@@ -243,16 +274,20 @@ export function AnnotationFeed({ chapter, edition, accountId, loading, notes, er
   return <div className="annotation-list">
     <div className="annotation-list-tools">
       <button className="text-button" disabled={loading} onClick={chooseSentence}><PencilLine size={16}/>写评论</button>
-      {!accountId && !loading && <Link className="text-button" to={`/auth?next=/read/${chapter}`}>登录同步</Link>}
+      <Link className="text-button" to={`/compose?chapter=${chapter}&from=reader`}>新建领读分享</Link>
+      <Link className="text-button" to={accountId ? `/agent/import?chapter=${chapter}&from=reader` : `/auth?next=${encodeURIComponent(`/agent/import?chapter=${chapter}&from=reader`)}`}>共修上传</Link>
       {pending && <button className="text-button" onClick={retryAnnotationSync}>重试同步</button>}
     </div>
     {(loading || publicLoading) && <p className="muted" role="status">正在读取评论…</p>}
     {error && <p className="muted" role="alert">{error} <button className="text-button" onClick={refresh}>重新读取</button></p>}
     {publicError && <p className="muted" role="alert">{publicError} <button className="text-button" onClick={() => setRetry(value => value + 1)}>重试</button></p>}
+    {shareError && <p role="alert">{shareError} <button className="text-button" onClick={() => setRetry(value => value + 1)}>重试</button></p>}
     {changeError && <p className="form-error" role="alert">{changeError}</p>}
-    {!loading && !publicLoading && !error && !publicError && !entries.length && <p className="muted">选中原文即可划线或写评论。</p>}
-    <ul className="reader-comment-entries" aria-label="本章评论" role="list">
-      {entries.map(entry => {
+    {!loading && !publicLoading && !error && !publicError && !combined.length && <p className="muted">选中原文即可划线或写评论。</p>}
+    <ul ref={listRef} className="reader-comment-entries" aria-label="本章评论" role="list">
+      {combined.map(item => {
+        if (item.kind === 'share') return <li key={`share-${item.share.id}`}><ShareRow share={item.share} returnTo={chapterChannelPath(chapter, true)}/></li>;
+        const entry = item.entry;
         const { note } = entry;
         const own = entry.owned ? entry.note : null;
         const canLocate = matchesAnnotation(note, characters);

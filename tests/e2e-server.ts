@@ -26,7 +26,8 @@ await database.client.contentItem.create({ data: {
   importData: { title: '播放器验收样本（测试音频）', summary: '理解 **知止**，也为生活留白。', sections: [{ title: '阅读与聆听', paragraphs: ['这是独立测试内容。', '### 在生活中体会\n- 理解 **知止**，把体会带回日常。'] }] },
   media: { create: [
     { ownerId: reader.id, objectKey: 'browser-fixture/cover.png', mime: 'image/png', size: cover.length, status: 'READY' },
-    { ownerId: reader.id, objectKey: 'browser-fixture/audio.wav', mime: 'audio/wav', size: wav.length, status: 'READY', blob: { create: { data: Uint8Array.from(wav) } } },
+    // Exercise the released cue mapping with synthetic audio in the isolated database.
+    { id: 'chapter-57-chanqiao-reading-audio-5191134c25ea', ownerId: reader.id, objectKey: 'browser-fixture/audio.wav', mime: 'audio/wav', size: wav.length, status: 'READY', blob: { create: { data: Uint8Array.from(wav) } } },
   ] },
 } });
 const handle = createApi({ db: database.client, prepareImport: async () => ({ title: '一场共读的记录', summary: '共读者分享了对知足与平和的理解。', sections: [{ title: '从阅读到生活', paragraphs: ['张*分享，慢下来才能听见自己的感受。', '大家讨论了如何在日常生活中保持平和。'] }, { title: '共读的收获', paragraphs: ['每一次交流，都为经典带来新的理解。'] }] }) }); const app = express();

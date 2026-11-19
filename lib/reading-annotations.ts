@@ -19,7 +19,7 @@ const draft = z.object({
   body: noteBody,
 }).strict().refine(note => note.end - note.start === Array.from(note.quote).length && !note.quote.includes('\0'), '原文摘录位置无效');
 const noteFields = { id: true, chapterNumber: true, editionId: true, start: true, end: true, quote: true, body: true } as const;
-const ownFields = { ...noteFields, version: true, published: true } as const;
+const ownFields = { ...noteFields, version: true, published: true, updatedAt: true } as const;
 
 function accountForRequest(request: Request, user: User | null) {
   const account = requireUser(user);
@@ -77,7 +77,7 @@ export async function changeAnnotation(request: Request, db: PrismaClient, user:
     data: { body, published, deleted: data.deleted, quote: data.deleted ? '' : undefined, version: { increment: 1 } },
   });
   if (!result.count) throw new ApiError(409, '标注已在别处更新，请查看最新内容', 'ANNOTATION_CONFLICT');
-  return json({ annotation: data.deleted ? null : { ...current, body, published, version: current.version + 1 } });
+  return json({ annotation: data.deleted ? null : await db.readingAnnotation.findFirst({ where, select: ownFields }) });
 }
 
 export async function publicAnnotations(db: PrismaClient, chapter: string, params: URLSearchParams, user: User | null) {

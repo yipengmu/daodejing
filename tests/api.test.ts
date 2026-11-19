@@ -136,7 +136,9 @@ test('MVP-1 PostgreSQL 持久化与共享 API 场景', async t => {
       assert.deepEqual(imports.map(result => result.status), [200, 200]);
       assert.deepEqual((await guest.call(chapter)).data.annotations, []);
       assert.deepEqual((await other.client.call(mine, 'GET', undefined, outsider)).data.annotations, []);
-      assert.deepEqual((await author.client.call(mine, 'GET', undefined, owner)).data.annotations, [{ ...note, published: false, version: 1 }]);
+      const ownAnnotations = (await author.client.call(mine, 'GET', undefined, owner)).data.annotations;
+      assert.ok(ownAnnotations[0].updatedAt);
+      assert.deepEqual(ownAnnotations, [{ ...note, published: false, version: 1, updatedAt: ownAnnotations[0].updatedAt }]);
       assert.equal((await other.client.call(detail, 'PATCH', { version: 1, published: true }, outsider)).status, 404);
       assert.equal((await admin.client.call(detail, 'PATCH', { version: 1, published: true }, { 'X-DDJ-Annotation-Account': admin.user.id })).status, 404);
 

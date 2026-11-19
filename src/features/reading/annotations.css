@@ -54,7 +54,8 @@
   flex-wrap: wrap;
   gap: 4px 20px;
 }
-.annotation-list-tools { justify-content: space-between; }
+.annotation-list-tools { justify-content: flex-start; }
+.annotation-list > .annotation-list-tools { gap: 4px 20px; padding-block: 4px 12px; border-bottom: 1px solid var(--line); }
 .annotation-list-tools h2 { margin: 0; }
 .reader-comment-entries { margin: 0; padding: 0; list-style: none; }
 .annotation-list-tools .text-button, .annotation-entry-actions button {

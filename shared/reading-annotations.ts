@@ -9,7 +9,7 @@ export type AnnotationAnchor = {
   quote: string;
 };
 
-export type AnnotationDraft = AnnotationAnchor & { id: string; body: string };
+export type AnnotationDraft = AnnotationAnchor & { id: string; body: string; updatedAt?: string };
 export type SavedAnnotation = AnnotationDraft & { version: number; published: boolean };
 export type PublicAnnotation = AnnotationDraft & { name: string; updatedAt: string };
 

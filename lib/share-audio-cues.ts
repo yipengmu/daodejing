@@ -1,6 +1,7 @@
 import type { AudioCue } from '../shared/audio-cues';
 
 // Timings are relative to the published cuts. Keep each track tied to its exact media version.
+// Chapter 57 source intervals: Luoyuan [382, 4092); Chanqiao [0, 167) + [442, 2355).
 export const shareAudioCues: ReadonlyMap<string, readonly AudioCue[]> = new Map([
   ['chapter-57-luoyuan-reading-audio-391c9c103914', [
     [0, 72, '离开熟悉的职场之后，重新想自己要做什么。'],

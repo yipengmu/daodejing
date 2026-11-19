@@ -65,6 +65,50 @@ test('开启省流量时，现场音频在主动播放后请求', async ({ page 
   expect((await response).status()).toBe(206);
 });
 
+test('随听提要跟随播放与剪辑后的跳转，手机滚动时可暂停并返回', async ({ page }, testInfo) => {
+  const mobile = testInfo.project.name === 'mobile';
+  if (mobile) await page.setViewportSize({ width: 320, height: 700 });
+  await page.goto('/shares/browser-audio-fixture');
+  const player = page.locator('.share-audio audio');
+  const cue = page.locator('.share-audio-cue');
+  const cueText = cue.locator('p');
+  const toggle = page.getByRole('button', { name: '随听提要', exact: true });
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(cueText).toHaveText('播放时显示随听提要');
+  await player.scrollIntoViewIfNeeded();
+  await player.evaluate((audio: HTMLAudioElement) => audio.play());
+  await expect(cueText).toHaveText('从创业谈起，追问这一生想做的事。');
+  await player.evaluate((audio: HTMLAudioElement) => { audio.currentTime = 166; });
+  await expect(cueText).toHaveText('三个方向，可以指向同一件事。');
+  await player.evaluate((audio: HTMLAudioElement) => { audio.currentTime = 167; });
+  await expect(cueText).toHaveText('眼下最重要的是什么？从哪里开始破局？');
+
+  await page.getByRole('navigation', { name: '内容目录' }).getByRole('link').first().click();
+  if (mobile) {
+    await expect(cue).toHaveCSS('position', 'fixed');
+    await expect(cue).toBeInViewport();
+    const dockBounds = (await cue.boundingBox())!;
+    const headingBounds = (await page.getByRole('heading', { name: '阅读与聆听' }).boundingBox())!;
+    expect(headingBounds.y).toBeGreaterThanOrEqual(dockBounds.y + dockBounds.height);
+    await expect(page.getByRole('navigation', { name: '主导航' })).toBeInViewport();
+    expect(await cueText.evaluate(element => element.scrollHeight <= element.clientHeight)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.getByRole('button', { name: '暂停音频' }).click();
+    await expect.poll(() => player.evaluate((audio: HTMLAudioElement) => audio.paused)).toBe(true);
+    await expect(cueText).toHaveText('眼下最重要的是什么？从哪里开始破局？');
+    await page.getByRole('button', { name: '继续播放音频' }).click();
+    await expect.poll(() => player.evaluate((audio: HTMLAudioElement) => audio.paused)).toBe(false);
+    await page.getByRole('button', { name: '返回播放器' }).click();
+    await expect(player).toBeInViewport();
+  }
+  await expect(cue).toHaveCSS('position', 'static');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(cue).toHaveCount(0);
+  await toggle.click();
+  await expect(cueText).toHaveText('眼下最重要的是什么？从哪里开始破局？');
+});
+
 test('匿名读经：81 章目录、阅读浮层、来源和频道返回', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto('/');

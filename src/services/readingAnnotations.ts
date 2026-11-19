@@ -49,7 +49,7 @@ export function pendingAnnotations() {
 
 export async function addAnnotation(note: AnnotationDraft, accountId: string | null) {
   await withPending<void>('readwrite', (store, finish) => {
-    store.add({ ...note, accountId });
+    store.add({ ...note, updatedAt: new Date().toISOString(), accountId });
     finish();
   });
   notify('local');
@@ -63,7 +63,7 @@ export async function editGuestAnnotation(id: string, body: string | null) {
       const current: PendingAnnotation | undefined = request.result;
       if (!current || current.accountId) { finish(false); return; }
       if (body === null) store.delete(id);
-      else store.put({ ...current, body });
+      else store.put({ ...current, body, updatedAt: new Date().toISOString() });
       finish(true);
     };
   });
@@ -128,7 +128,7 @@ export function useAnnotationSync(accountId: string | undefined) {
         }
         const own = pending.filter(note => note.accountId === accountId);
         for (let index = 0; index < own.length && !controller.signal.aborted; index += ANNOTATION_BATCH_SIZE) {
-          const batch = own.slice(index, index + ANNOTATION_BATCH_SIZE).map(({ accountId: _accountId, ...note }) => note);
+          const batch = own.slice(index, index + ANNOTATION_BATCH_SIZE).map(({ accountId: _accountId, updatedAt: _updatedAt, ...note }) => note);
           await api('/me/annotations', {
             method: 'POST', body: JSON.stringify({ annotations: batch }), headers: accountHeaders(accountId), signal: controller.signal,
           });
