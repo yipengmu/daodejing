@@ -25,10 +25,13 @@ export async function serveLeadPresentation(request: Request, db: PrismaClient, 
   if (!share || !presentationUrl(share)) throw new ApiError(404, '领读材料不存在或已停止公开');
 
   const bytes = await readFile(join(process.cwd(), 'sites/chapter-57-reading/dist', file));
+  const staticAsset = file !== 'index.html';
   return new Response(request.method === 'HEAD' ? null : new Uint8Array(bytes), { headers: {
     'Content-Type': mime,
     'Content-Length': String(bytes.length),
-    'Cache-Control': 'private, no-store',
+    // Every request is still authorized against the current share state above.
+    // Cache only immutable presentation assets at the browser/CDN edge.
+    'Cache-Control': staticAsset ? 'public, max-age=86400, stale-while-revalidate=604800' : 'private, no-cache',
     'X-Content-Type-Options': 'nosniff',
     'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'",
   } });

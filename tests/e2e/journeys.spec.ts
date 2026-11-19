@@ -17,19 +17,52 @@ test('游客从第57章频道打开完整领读，使用原长页目录', async 
   await expect(page.locator('.substance-center strong')).toHaveText('实');
 });
 
-test('现场音频位于封面与纪要之间，按需加载且可播放定位', async ({ page }) => {
+test('现场音频靠近可视区后预加载，可分段播放和跳转', async ({ page }) => {
+  const audioRanges: string[] = [];
+  let releaseLaterRanges!: () => void;
+  const laterRanges = new Promise<void>(resolve => { releaseLaterRanges = resolve; });
+  await page.route('**/api/media/*', async route => {
+    const range = route.request().headers()['range'];
+    if (range && /^bytes=[1-9]/.test(range)) await laterRanges;
+    await route.continue();
+  });
+  page.on('response', response => {
+    if (response.headers()['content-type'] === 'audio/wav' && response.status() === 206) audioRanges.push(response.headers()['content-range']);
+  });
   await page.goto('/shares/browser-audio-fixture');
   const player = page.locator('.share-audio audio');
-  await expect(player).toHaveCount(1);
-  await expect(player).toHaveAttribute('preload', 'none');
   await expect(page.locator('.share-cover + .share-audio + .structured-reading')).toHaveCount(1);
   await expect(page.locator('.media-gallery audio')).toHaveCount(0);
   await expect(player).toHaveAttribute('src', /^\/api\/media\//);
-  await player.evaluate((audio: HTMLAudioElement) => audio.play());
-  await expect.poll(() => player.evaluate((audio: HTMLAudioElement) => audio.currentTime)).toBeGreaterThan(0);
-  await player.evaluate((audio: HTMLAudioElement) => { audio.pause(); audio.currentTime = 8; });
-  await expect.poll(() => player.evaluate((audio: HTMLAudioElement) => audio.currentTime)).toBeGreaterThanOrEqual(8);
+  await player.scrollIntoViewIfNeeded();
+  await expect(player).toHaveAttribute('preload', 'metadata');
+  await expect.poll(() => player.evaluate((audio: HTMLAudioElement) => audio.duration)).toBe(360);
+  expect(audioRanges[0]).toBe('bytes 0-2097151/5760044');
+  expect(await player.evaluate((audio: HTMLAudioElement) => audio.paused)).toBe(true);
+  try {
+    await player.evaluate((audio: HTMLAudioElement) => audio.play());
+    await expect(player).toHaveAttribute('preload', 'auto');
+    await expect.poll(() => player.evaluate((audio: HTMLAudioElement) => audio.currentTime)).toBeGreaterThan(0);
+    expect(audioRanges).toEqual(['bytes 0-2097151/5760044']);
+  } finally {
+    releaseLaterRanges();
+  }
+  await player.evaluate((audio: HTMLAudioElement) => { audio.pause(); audio.currentTime = 300; });
+  await expect.poll(() => player.evaluate((audio: HTMLAudioElement) => !audio.seeking && audio.currentTime >= 300)).toBe(true);
+  expect(audioRanges.some(range => /^bytes [1-9]/.test(range))).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('开启省流量时，现场音频在主动播放后请求', async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, 'connection', { value: { saveData: true } }));
+  await page.goto('/shares/browser-audio-fixture');
+  const player = page.locator('.share-audio audio');
+  await player.scrollIntoViewIfNeeded();
+  await expect(player).toHaveAttribute('preload', 'none');
+  expect(await player.evaluate((audio: HTMLAudioElement) => audio.readyState)).toBe(0);
+  const response = page.waitForResponse(res => res.headers()['content-type'] === 'audio/wav');
+  await player.evaluate((audio: HTMLAudioElement) => audio.play());
+  expect((await response).status()).toBe(206);
 });
 
 test('匿名读经：81 章目录、阅读浮层、来源和频道返回', async ({ page }) => {
