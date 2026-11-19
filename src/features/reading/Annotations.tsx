@@ -76,34 +76,68 @@ export function useChapterAnnotations(chapter: number, edition: string, accountI
   return { notes: current?.notes ?? [], error: current?.error ?? '', loading: !current, retry: () => setRetry(value => value + 1) };
 }
 
-export type TextSelection = { anchor: AnnotationAnchor; left: number; top: number; below: boolean };
+export type TextSelection = {
+  anchor: AnnotationAnchor;
+  position?: { left: number; top: number; below: boolean };
+};
+
+function textOffset(root: HTMLElement, node: Node, offset: number) {
+  if (!root.contains(node)) return null;
+  const prefix = document.createRange();
+  prefix.selectNodeContents(root);
+  prefix.setEnd(node, offset);
+  return Array.from(prefix.toString()).length;
+}
 
 export function readTextSelection(root: HTMLElement, pageStart: number, characters: readonly string[], chapterNumber: number, editionId: string): TextSelection | null {
   const selection = window.getSelection();
   if (!selection?.rangeCount || selection.isCollapsed) return null;
   const range = selection.getRangeAt(0);
-  if (!root.contains(range.startContainer) || !root.contains(range.endContainer)) return null;
-  const prefix = range.cloneRange();
-  prefix.selectNodeContents(root);
-  prefix.setEnd(range.startContainer, range.startOffset);
+  const offset = textOffset(root, range.startContainer, range.startOffset);
+  if (offset === null || !root.contains(range.endContainer)) return null;
   const quote = range.toString();
-  const start = pageStart + Array.from(prefix.toString()).length;
+  const start = pageStart + offset;
   const anchor = { chapterNumber, editionId, start, end: start + Array.from(quote).length, quote };
   if (!quote.trim() || !matchesAnnotation(anchor, characters)) return null;
-  const coarse = window.matchMedia('(pointer: coarse)').matches;
-  const rects = Array.from(range.getClientRects()).filter(rect => rect.width > 0);
-  const rect = (coarse ? rects.at(-1) : rects[0]) ?? range.getBoundingClientRect();
-  const below = coarse ? rect.bottom < window.innerHeight - 126 : rect.top < 126;
-  return { anchor, left: rect.left + rect.width / 2, top: below ? rect.bottom : rect.top, below };
+  const rect = Array.from(range.getClientRects()).find(item => item.width > 0) ?? range.getBoundingClientRect();
+  const below = rect.top < 126;
+  return { anchor, position: { left: rect.left + rect.width / 2, top: below ? rect.bottom : rect.top, below } };
 }
 
-export function SelectionActions({ selection, mark, write }: { selection: TextSelection; mark: () => void; write: () => void }) {
-  const left = Math.max(103, Math.min(window.innerWidth - 103, selection.left));
-  const top = selection.below ? selection.top + 12 : selection.top - 9;
+export function readPressedClause(root: HTMLElement, x: number, y: number, page: { start: number; end: number }, characters: readonly string[], chapterNumber: number, editionId: string): TextSelection | null {
+  const position = document.caretPositionFromPoint?.(x, y);
+  const range = position ? null : document.caretRangeFromPoint?.(x, y);
+  const node = position?.offsetNode ?? range?.startContainer;
+  if (!node) return null;
+  const offset = textOffset(root, node, position?.offset ?? range?.startOffset ?? 0);
+  if (offset === null || page.end <= page.start) return null;
+
+  const punctuation = /[，。！？；、：,.!?;:]/u;
+  let start = Math.min(page.start + offset, page.end - 1);
+  let end = start + 1;
+  while (start > page.start && !punctuation.test(characters[start - 1])) start--;
+  while (end < page.end && !punctuation.test(characters[end - 1])) end++;
+  const quote = characters.slice(start, end).join('');
+  if (!quote.trim() || Array.from(quote).every(char => punctuation.test(char))) return null;
+  return { anchor: { chapterNumber, editionId, start, end, quote } };
+}
+
+export function SelectionActions({ selection, bottom, mark, write }: { selection: TextSelection; bottom: string; mark: () => void; write: () => void }) {
+  const { position } = selection;
+  const pinned = !position || window.matchMedia('(pointer: coarse)').matches;
+  const style = pinned ? { left: '50%', bottom } : {
+    left: Math.max(103, Math.min(window.innerWidth - 103, position.left)),
+    top: position.below ? position.top + 12 : position.top - 9,
+  };
   return <div className="selection-actions" aria-label="所选原文的操作" role="group"
-    style={{ left, top }} data-below={selection.below} onPointerDown={event => event.preventDefault()}>
-    <button onClick={mark}><Underline size={16}/>划线</button>
-    <button onClick={write}><PencilLine size={16}/>写评论</button>
+    style={style} data-pinned={pinned} data-below={!pinned && position.below} onPointerDown={event => {
+      if (event.pointerType === 'mouse') event.preventDefault();
+    }}>
+    {!position && <span className="selection-actions-quote">{selection.anchor.quote}</span>}
+    <div className="selection-actions-buttons">
+      <button onClick={mark}><Underline size={16}/>划线</button>
+      <button onClick={write}><PencilLine size={16}/>写评论</button>
+    </div>
   </div>;
 }
 

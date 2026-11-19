@@ -13,7 +13,8 @@
   position: fixed;
   z-index: 45;
   display: flex;
-  align-items: stretch;
+  flex-direction: column;
+  align-items: center;
   transform: translate(-50%, -100%);
   padding: 0 5px;
   background: var(--ink);
@@ -21,9 +22,13 @@
   border-radius: 6px;
   box-shadow: 0 3px 12px #262b2730;
   white-space: nowrap;
+  max-width: calc(100% - 24px);
+  touch-action: manipulation;
 }
 
-.selection-actions[data-below=true] { transform: translateX(-50%); }
+.selection-actions[data-below=true], .selection-actions[data-pinned=true] { transform: translateX(-50%); }
+.selection-actions-buttons { display: flex; }
+.selection-actions-quote { max-width: 100%; padding: 8px 10px 0; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
 .selection-actions button {
   display: inline-flex;
   align-items: center;
@@ -37,9 +42,11 @@
 
 .reading-drawer .drawer-tabs { gap: clamp(10px, 4vw, 32px); padding-inline: 12px; }
 .reading-drawer .drawer-tabs > button { min-height: 44px; white-space: nowrap; }
-.reader-channel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.reader-channel-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 8px; }
 .reader-channel-heading h2 { margin: 0; }
-.reader-channel-heading .text-button { min-height: 44px; color: var(--green); font-size: 14px; }
+.reader-channel-actions { display: flex; align-items: center; gap: 12px; }
+.reader-channel-actions .text-button { min-height: 44px; color: var(--green); font-size: 14px; }
+.reader-channel-actions .button { min-height: 44px; padding: 8px 10px; font-size: 13px; }
 .annotation-list { max-width: 690px; margin-inline: auto; }
 .annotation-list-tools, .annotation-editor-actions, .annotation-entry-actions {
   display: flex;

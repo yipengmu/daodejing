@@ -15,8 +15,10 @@ import { ShareAudio } from './ShareAudio';
 import { chapterChannelPath } from '../reading/channelPath';
 
 export function Channel({ embedded = false, chapterNumber }: { embedded?: boolean; chapterNumber?: number } = {}) {
-  const number = chapterNumber ?? Number(useParams().number); const [sort, setSort] = useState('reads'); const [page, setPage] = useState(0);
-  const resource = useResource<{ shares: Share[]; hasMore: boolean }>(`/shares?chapter=${number}&sort=${sort}&page=${page}`);
+  const { number: routeNumber } = useParams();
+  const number = chapterNumber ?? Number(routeNumber);
+  const [page, setPage] = useState(0);
+  const resource = useResource<{ shares: Share[]; hasMore: boolean }>(`/shares?chapter=${number}&sort=reads&page=${page}`);
   const list = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!list.current || !resource.data) return;
@@ -24,7 +26,33 @@ export function Channel({ embedded = false, chapterNumber }: { embedded?: boolea
     list.current.querySelectorAll('[data-share-id]').forEach(item => observer.observe(item)); return () => observer.disconnect();
   }, [resource.data]);
   if (!chapterIndex[number - 1]) return <div className="page-width"><h1>这一章不存在</h1><Link to="/">返回目录</Link></div>;
-  return <div className={`page-width channel-page${embedded ? ' channel-embedded' : ''}`}>{!embedded && <Back to={`/read/${number}`} label="回到原文"/>}{embedded ? null : <PageHead eyebrow={`道德经 · 第 ${String(number).padStart(2, '0')} 章`} title="本章分享"><Link className="button primary" to={`/compose?chapter=${number}`}><Pencil size={16}/>写下体会</Link></PageHead>}{!embedded && <><Link className="chapter-context" to={`/read/${number}`}><BookOpen size={21}/><div><strong>{chapterIndex[number - 1].title}</strong><span>{chapterIndex[number - 1].excerpt}…</span></div><ArrowRight size={18}/></Link><section className="capture-entry" aria-label="导入现场记录"><div><strong>把共读记录分享给大家</strong><p>把公开链接或整理好的文字发给共读助手</p></div><Link className="button secondary" to={`/agent/import?chapter=${number}`}><MessageSquareText size={16}/>和助手说说</Link></section></>}<div className="feed-toolbar"><div className="tabs"><button className={sort === 'reads' ? 'active' : ''} onClick={() => { setSort('reads'); setPage(0); }}>阅读较多</button><button className={sort === 'latest' ? 'active' : ''} onClick={() => { setSort('latest'); setPage(0); }}>最新</button></div>{embedded ? <Link className="button primary channel-compose" to={`/compose?chapter=${number}&from=reader`}><Pencil size={16}/>写下体会</Link> : <span>每一种体会，都有自己的来处</span>}</div><p className="field-note">阅读较多按累计有效阅读数排序，不代表经义权威或内容质量。</p><div ref={list}><Status loading={resource.loading} error={resource.error} retry={resource.refresh} empty={resource.data && !resource.data.shares.length ? '本章还没有分享。也许，第一份体会就从你开始。' : undefined}>{resource.data?.shares.map(share => <ShareRow share={share} returnTo={embedded ? chapterChannelPath(number, true) : undefined} key={share.id}/>)}</Status></div><div className="pager">{page > 0 && <button className="button secondary" onClick={() => setPage(p => p - 1)}>上一页</button>}{resource.data?.hasMore && <button className="button secondary" onClick={() => setPage(p => p + 1)}>下一页</button>}</div></div>;
+  return <div className={`page-width channel-page${embedded ? ' channel-embedded' : ''}`}>
+    {!embedded && <>
+      <Back to={`/read/${number}`} label="回到原文"/>
+      <PageHead eyebrow={`道德经 · 第 ${String(number).padStart(2, '0')} 章`} title="本章分享">
+        <div className="action-row">
+          <Link className="button secondary" to={`/compose?chapter=${number}`}>新建领读分享</Link>
+          <Link className="button primary" to={`/agent/import?chapter=${number}`}><MessageSquareText size={16}/>共修上传</Link>
+        </div>
+      </PageHead>
+      <Link className="chapter-context" to={`/read/${number}`}>
+        <BookOpen size={21}/><div><strong>{chapterIndex[number - 1].title}</strong><span>{chapterIndex[number - 1].excerpt}…</span></div><ArrowRight size={18}/>
+      </Link>
+      <section className="capture-entry" aria-label="导入现场记录">
+        <div><strong>把共读记录分享给大家</strong><p>把公开链接或整理好的文字发给共读助手</p></div>
+        <Link className="button secondary" to={`/agent/import?chapter=${number}`}><MessageSquareText size={16}/>上传共修记录</Link>
+      </section>
+    </>}
+    <div ref={list}>
+      <Status loading={resource.loading} error={resource.error} retry={resource.refresh} empty={resource.data && !resource.data.shares.length ? '本章还没有分享。也许，第一份体会就从你开始。' : undefined}>
+        {resource.data?.shares.map(share => <ShareRow share={share} returnTo={embedded ? chapterChannelPath(number, true) : undefined} key={share.id}/>)}
+      </Status>
+    </div>
+    {(page > 0 || resource.data?.hasMore) && <div className="pager">
+      {page > 0 && <button className="button secondary" onClick={() => setPage(p => p - 1)}>上一页</button>}
+      {resource.data?.hasMore && <button className="button secondary" onClick={() => setPage(p => p + 1)}>下一页</button>}
+    </div>}
+  </div>;
 }
 export function ShareDetail() {
   const { id = '' } = useParams(); const { user } = useSession(); const navigate = useNavigate(); const location = useLocation();

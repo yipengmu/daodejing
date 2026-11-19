@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import { ArrowLeft, ArrowRight, List, MoreHorizontal, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, List, MoreHorizontal, Pencil, X } from 'lucide-react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { chapters, chapterTitle, edition, readProgress } from './Library';
 import { localState } from '../../services/storage';
@@ -8,12 +8,12 @@ import { addAnnotation, changeAnnotation, editGuestAnnotation } from '../../serv
 import { useSession } from '../../app/context';
 import { matchesAnnotation, type AnnotationAnchor } from '../../../shared/reading-annotations';
 import { Channel } from '../shares/Pages';
-import { AnnotationEditor, AnnotationFeed, SelectionActions, readTextSelection, renderAnnotatedText, useChapterAnnotations, type ReaderAnnotation, type TextSelection } from './Annotations';
+import { AnnotationEditor, AnnotationFeed, SelectionActions, readPressedClause, readTextSelection, renderAnnotatedText, useChapterAnnotations, type ReaderAnnotation, type TextSelection } from './Annotations';
 import './annotations.css';
 
 type Page = { chapter: number; start: number; end: number; text: string };
 type ReadingBlock = { kind: 'text'; text: string } | { kind: 'questions' | 'parallel'; lines: string[] };
-const drawerTabs = [['notes', '原文注释'], ['annotations', '评论'], ['channel', '本章频道']] as const;
+const drawerTabs = [['notes', '原文注释'], ['annotations', '评论']] as const;
 type DrawerTab = typeof drawerTabs[number][0];
 function collapsedDrawerHeight(compact = false) { return (compact ? 68 : 92) / window.innerHeight; }
 function expandedDrawerHeight() { return window.matchMedia('(max-width: 760px)').matches ? 0.95 : 0.5; }
@@ -115,13 +115,15 @@ export default function Reader() {
   const [selection, setSelection] = useState<TextSelection | null>(null);
   const [editor, setEditor] = useState<{ note: AnnotationAnchor | ReaderAnnotation; accountId: string | null } | null>(null);
   const [sentencePicker, setSentencePicker] = useState(false);
+  const [channelComments, setChannelComments] = useState(() => new URLSearchParams(location.search).get('panel') === 'channel');
   const [located, setLocated] = useState<AnnotationAnchor | null>(null);
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
   const enteredChannel = new URLSearchParams(location.search).get('panel') === 'channel';
-  const tab = drawerChoice?.entry === location.key ? drawerChoice.tab : enteredChannel ? 'channel' : 'notes';
+  const tab = drawerChoice?.entry === location.key ? drawerChoice.tab : enteredChannel ? 'annotations' : 'notes';
   const annotationState = useChapterAnnotations(number, edition.id, accountId, !!chapter && !session.loading);
   const characters = useMemo(() => Array.from(chapter?.text ?? ''), [chapter]);
   const page = pages[pageIndex]?.chapter === number ? pages[pageIndex] : undefined;
+  const pageStart = page?.start ?? 0;
   const expanded = drawer * window.innerHeight > 100;
   const activeEditor = editor?.note.chapterNumber === number && editor.accountId === accountId ? editor.note : null;
   const visibleRanges: AnnotationAnchor[] = annotationState.notes.filter(note => matchesAnnotation(note, characters));
@@ -189,11 +191,22 @@ export default function Reader() {
     setSelection(null);
     if (session.loading || panel || activeEditor) return;
     const update = () => {
-      setSelection(source.current ? readTextSelection(source.current, page?.start ?? 0, characters, number, edition.id) : null);
+      const next = source.current ? readTextSelection(source.current, pageStart, characters, number, edition.id) : null;
+      // Mobile selection may collapse when the reader taps the toolbar.
+      const retain = window.matchMedia('(pointer: coarse)').matches;
+      setSelection(current => next ?? (retain ? current : null));
+    };
+    const dismiss = (event: PointerEvent) => {
+      if (event.target instanceof Element && event.target.closest('.selection-actions')) return;
+      setSelection(null);
     };
     document.addEventListener('selectionchange', update);
-    return () => document.removeEventListener('selectionchange', update);
-  }, [number, page, characters, session.loading, panel, activeEditor]);
+    document.addEventListener('pointerdown', dismiss, true);
+    return () => {
+      document.removeEventListener('selectionchange', update);
+      document.removeEventListener('pointerdown', dismiss, true);
+    };
+  }, [number, pageStart, characters, session.loading, panel, activeEditor]);
   useEffect(() => {
     if (!notice) return;
     const timer = window.setTimeout(() => setNotice(null), notice.error ? 6500 : 2600);
@@ -291,11 +304,21 @@ export default function Reader() {
         pointer.current = { x: event.clientX, y: event.clientY, time: event.timeStamp };
       }} onPointerUp={event => {
         const start = pointer.current; pointer.current = null;
-        if (!start || event.timeStamp - start.time > 400 || window.getSelection()?.toString()) return;
+        if (!start) return;
         const dx = event.clientX - start.x, dy = event.clientY - start.y;
+        const duration = event.timeStamp - start.time;
+        if (duration >= 450) {
+          if (event.pointerType === 'touch' && Math.hypot(dx, dy) < 12 && !session.loading && source.current?.contains(event.target as Node)) {
+            const native = readTextSelection(source.current, pageStart, characters, number, edition.id);
+            const next = native ?? readPressedClause(source.current, start.x, start.y, page ?? { start: 0, end: characters.length }, characters, number, edition.id);
+            if (next) setSelection(next);
+          }
+          return;
+        }
+        if (window.getSelection()?.toString()) return;
         if (Math.abs(dx) > 65 && Math.abs(dx) > Math.abs(dy) * 1.6) turn(dx < 0 ? 1 : -1);
       }} onPointerCancel={() => { pointer.current = null; }}>
-        {renderReadingBlocks(page?.text || chapter.text, number, font, page?.start ?? 0, source, visibleRanges)}
+        {renderReadingBlocks(page?.text || chapter.text, number, font, pageStart, source, visibleRanges)}
         <div className="scripture measure" ref={measure} style={{ fontSize: font }} aria-hidden="true"/>
       </div>
     </div>
@@ -342,19 +365,29 @@ export default function Reader() {
                   }}>{quote}</button>;
                 })}
               </div>
-            : <AnnotationFeed chapter={number} edition={edition.id} accountId={accountId} {...annotationState} characters={characters}
-                chooseSentence={() => setSentencePicker(true)} locate={locate} edit={openEditor} change={updateAnnotation} refresh={annotationState.retry}/>)}
-          {tab === 'channel' && <section aria-labelledby="reader-channel-shares">
+            : <>
+            <div className="tabs reader-comment-tabs" role="tablist" aria-label="评论内容">
+              <button role="tab" aria-selected={!channelComments} className={!channelComments ? 'active' : ''} onClick={() => setChannelComments(false)}>原文评论</button>
+              <button role="tab" aria-selected={channelComments} className={channelComments ? 'active' : ''} onClick={() => setChannelComments(true)}>本章频道</button>
+            </div>
+            {!channelComments
+              ? <AnnotationFeed chapter={number} edition={edition.id} accountId={accountId} {...annotationState} characters={characters}
+                  chooseSentence={() => setSentencePicker(true)} locate={locate} edit={openEditor} change={updateAnnotation} refresh={annotationState.retry}/>
+              : <section aria-labelledby="reader-channel-shares">
             <div className="reader-channel-heading">
-              <h2 id="reader-channel-shares">共读分享</h2>
-              <Link className="text-button" to={`/agent/import?chapter=${number}&from=reader`}>导入记录</Link>
+              <h2 id="reader-channel-shares">本章频道</h2>
+              <div className="reader-channel-actions">
+                <Link className="text-button" to={`/compose?chapter=${number}&from=reader`}>新建领读分享</Link>
+                <Link className="button primary" to={`/agent/import?chapter=${number}&from=reader`}><Pencil size={16}/>共修上传</Link>
+              </div>
             </div>
             <Channel embedded chapterNumber={number}/>
           </section>}
+          </>)}
         </div>
       </>}
     </section>
-    {selection && <SelectionActions selection={selection} mark={() => {
+    {selection && (!expanded || !window.matchMedia('(pointer: coarse)').matches) && <SelectionActions selection={selection} bottom={`calc(${drawer * 100}dvh + 12px)`} mark={() => {
       const note = selection.anchor;
       clearSelection();
       void saveAnnotation(note, '').catch(error => setNotice({ text: error.message, error: true }));

@@ -151,10 +151,3 @@ h1, h2 { text-wrap: balance; }
 .drawer-handle-row.is-expanded.single-page>.drawer-handle { height: 58px; min-height: 58px; padding: 16px 4px 0; }
 .drawer-handle-row.is-expanded .drawer-collapsed-label { display: none; }
 .drawer-chapter { color: var(--ink); font-family: var(--sans); font-size: 12px; }
-.channel-embedded .feed-toolbar { gap: 12px; }
-.channel-embedded .feed-toolbar .tabs { min-width: 0; gap: 20px; }
-.channel-embedded .channel-compose { min-height: 40px; padding: 8px 12px; font-size: 13px; gap: 8px; flex-shrink: 0; }
-@media (max-width: 350px) {
-  .channel-embedded .feed-toolbar .tabs { gap: 12px; }
-  .channel-embedded .channel-compose { padding-inline: 8px; font-size: 12px; }
-}

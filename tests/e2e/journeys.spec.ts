@@ -4,6 +4,7 @@ import YAML from 'yaml';
 
 test('游客从第57章频道打开完整领读，使用原长页目录', async ({ page }) => {
   await page.goto('/chapters/57');
+  await expect(page.getByRole('button', { name: /^(阅读较多|最新)$/ })).toHaveCount(0);
   await page.getByRole('link', { name: '真实', exact: true }).click();
   const open = page.getByRole('link', { name: '打开完整领读' });
   await expect(open).toBeVisible();
@@ -46,7 +47,9 @@ test('匿名读经：81 章目录、阅读浮层、来源和频道返回', async
   await expect(page.getByRole('list', { name: '本章评论' })).toBeAttached();
   await page.getByRole('tab', { name: '本章频道', exact: true }).click();
   await expect(page).toHaveURL(/\/read\/30$/);
-  await expect(page.getByRole('region', { name: '共读分享' }).getByRole('button', { name: '阅读较多', exact: true })).toBeVisible();
+  const shares = page.getByRole('region', { name: '共读分享' });
+  await expect(shares.getByRole('link', { name: '写下体会' })).toBeVisible();
+  await expect(shares.getByRole('button', { name: /^(阅读较多|最新)$/ })).toHaveCount(0);
   await expect(page.getByRole('list', { name: '本章评论' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: '进入本章频道' })).toHaveCount(0);
   await page.getByRole('button', { name: '收起本章阅读与交流' }).click();

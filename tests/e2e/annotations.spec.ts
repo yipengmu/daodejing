@@ -8,6 +8,7 @@ test('游客暂存和账号自动同步的划线与评论在同一列表', async
   const panel = page.getByRole('tabpanel', { name: '评论', exact: true });
   const comments = panel.getByRole('list', { name: '本章评论' });
   const editor = page.getByRole('dialog', { name: '写评论' });
+  const touch = testInfo.project.name === 'mobile' ? await page.context().newCDPSession(page) : null;
   const firstSentence = '载营魄抱一，能无离乎？';
   const secondSentence = '专气致柔，能如婴儿乎？';
   const openSentence = async (sentence: string) => {
@@ -17,7 +18,7 @@ test('游客暂存和账号自动同步的划线与评论在同一列表', async
   };
   const openDrawer = () => page.getByRole('button', { name: '展开本章阅读与交流' }).click();
   async function selectText() {
-    const isMobile = testInfo.project.name === 'mobile';
+    const isMobile = !!touch;
     const { quote, left, right, y } = await source.evaluate((element, mobile) => {
       const text = element.querySelector('p')!.firstChild!;
       const range = document.createRange();
@@ -51,8 +52,17 @@ test('游客暂存和账号自动同步的划线与评论在同一列表', async
   await page.getByRole('button', { name: '收起本章阅读与交流' }).click();
   const quote = await selectText();
   const underline = page.getByRole('button', { name: '划线', exact: true });
-  if (testInfo.project.name === 'mobile') await underline.tap();
-  else await underline.click();
+  if (touch) {
+    await expect(underline).toBeVisible();
+    const box = (await underline.boundingBox())!;
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: box.x + box.width / 2, y: box.y + box.height / 2 }] });
+    await page.evaluate(() => {
+      window.getSelection()!.removeAllRanges();
+      return new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+    });
+    await expect(underline).toBeVisible();
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  } else await underline.click();
   await expect(source.locator('.scripture-underline')).toHaveText(quote);
   expect(guestUploads).toBe(0);
 
@@ -164,5 +174,35 @@ test('游客暂存和账号自动同步的划线与评论在同一列表', async
     page.once('dialog', dialog => dialog.accept());
     await item.getByRole('button', { name: '删除' }).click();
     await expect(item).toHaveCount(0);
+  }
+
+  if (touch) {
+    await page.getByRole('button', { name: '收起本章阅读与交流' }).click();
+    const point = await source.evaluate(element => {
+      element.addEventListener('selectstart', event => event.preventDefault());
+      element.addEventListener('contextmenu', event => event.preventDefault());
+      const text = element.querySelector('p')!.firstChild!;
+      const range = document.createRange();
+      range.setStart(text, 1);
+      range.setEnd(text, 2);
+      const rect = range.getBoundingClientRect();
+      return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+    });
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
+    await page.waitForTimeout(550);
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    const actions = page.getByRole('group', { name: '所选原文的操作' });
+    await expect(actions).toContainText('载营魄抱一，');
+    const fallbackUpload = awaitUpload();
+    await actions.getByRole('button', { name: '划线', exact: true }).tap();
+    expect((await fallbackUpload).ok()).toBeTruthy();
+    await expect(source.locator('.scripture-underline')).toHaveText('载营魄抱一，');
+    await page.reload();
+    await expect(source.locator('.scripture-underline')).toHaveText('载营魄抱一，');
+    await openDrawer();
+    await annotations.click();
+    page.once('dialog', dialog => dialog.accept());
+    await comments.getByRole('listitem').filter({ hasText: '载营魄抱一，' }).getByRole('button', { name: '删除' }).click();
+    await expect(source.locator('.scripture-underline')).toHaveCount(0);
   }
 });
