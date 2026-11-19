@@ -99,7 +99,7 @@ export function ShareDetail() {
     {share.presentationUrl && <div className="action-row"><a className="button primary" href={share.presentationUrl}><BookOpen size={17}/>打开完整领读</a></div>}
     {visibleCoverPhotos.length > 0 && <div className="share-photo-pair" role="group" aria-label="共读现场照片">
       {visibleCoverPhotos.map((photo, index) => <figure key={photo.mediaId}>
-        <img src={`/api/media/${encodeURIComponent(photo.mediaId)}`} alt={photo.alt} fetchPriority={index === 0 ? 'high' : 'auto'} decoding="async"/>
+        <img src={`/api/media/${encodeURIComponent(photo.mediaId)}`} alt={photo.alt} loading={index === 0 ? 'eager' : 'lazy'} fetchPriority={index === 0 ? 'high' : 'low'} decoding="async"/>
         <figcaption>{photo.caption}</figcaption>
       </figure>)}
     </div>}
