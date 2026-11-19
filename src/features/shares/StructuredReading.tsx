@@ -39,7 +39,7 @@ function sectionHeading(title: string) {
   return { heading, time: time.join('｜') };
 }
 
-export function StructuredReading({ document, kind = 'session' }: { document: ImportDocument; kind?: 'session' | 'agent-notes' | 'lead-reading' }) {
+export function StructuredReading({ document, availableImages = [], kind = 'session' }: { document: ImportDocument; availableImages?: string[]; kind?: 'session' | 'agent-notes' | 'lead-reading' }) {
   const isLeadReading = kind === 'lead-reading';
   return <div className="structured-reading">
     {document.summary && <div className="reading-overview"><h2>{isLeadReading ? '领读提要' : kind === 'agent-notes' ? '共读纪要摘要' : '现场记录摘要'}</h2>
@@ -50,8 +50,13 @@ export function StructuredReading({ document, kind = 'session' }: { document: Im
     })}</nav>
     <div className="structured-sections">{document.sections.map((section, index) => {
       const { heading, time } = sectionHeading(section.title);
+      const image = section.illustration;
       return <section id={`reading-section-${index}`} className="structured-section" key={index}>
         <div className="structured-section-title"><span>{String(index + 1).padStart(2, '0')}</span><div><h2>{heading}</h2>{time && <small><Clock3 size={14} aria-hidden="true"/>{time}</small>}</div></div>
+        {image && availableImages.includes(image.mediaId) && <figure className="reading-figure">
+          <img src={`/api/media/${encodeURIComponent(image.mediaId)}`} alt={image.alt} loading="lazy" decoding="async"/>
+          <figcaption>{image.caption}</figcaption>
+        </figure>}
         <div className="structured-section-body">{topicBlocks(section.paragraphs).map((topic, topicIndex) => topic.title ? <article className="reading-topic" key={topicIndex}><div className="reading-topic-heading"><BookOpen size={19} aria-hidden="true"/><h3><Emphasis text={topic.title}/></h3></div><ReadingBlock text={topic.body}/></article> : <div className="reading-section-intro" key={topicIndex}><ReadingBlock text={topic.body}/></div>)}</div>
       </section>;
     })}</div>

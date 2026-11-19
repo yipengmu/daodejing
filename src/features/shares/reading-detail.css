@@ -93,3 +93,25 @@
 .structured-section-body:not(:has(.reading-topic))>.reading-section-intro { background: transparent; padding: 0; margin-bottom: 16px; }
 
 .reading-overview>h2, .structured-outline h2, .structured-section-title h2 { text-wrap: balance; }
+
+.reading-figure {
+  margin: 0 auto 24px;
+  max-width: 840px;
+}
+.reading-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: auto 2 / 1;
+  border-radius: 10px;
+  background: var(--reading-border);
+}
+.reading-figure figcaption {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+@media (max-width:760px) {
+  .reading-figure { margin-bottom: 16px; }
+}
