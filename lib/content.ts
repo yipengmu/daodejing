@@ -5,10 +5,16 @@ import { ApiError, required } from './config';
 import { chapterNumber, cleanText, input, json, safeUrl, pageNumber } from './http';
 import { requireOwner, requireUser, type User } from './auth';
 import { audit, idempotent, rateLimit, shanghaiDay, type Db } from './persistence';
+import { presentationUrl } from './lead-presentation';
 
-const shareInclude = { _count: { select: { likes: true, comments: { where: { status: 'PUBLISHED' } } } }, media: { where: { status: 'READY' } }, dojo: true, gathering: { include: { dojo: true, temporaryPlace: true } } } as const;
+const shareInclude = { _count: { select: { likes: true, comments: { where: { status: 'PUBLISHED' } } } }, media: { where: { status: 'READY' }, orderBy: { createdAt: 'asc' } }, dojo: true, gathering: { include: { dojo: true, temporaryPlace: true } } } as const;
+function mediaName(media: { mime: string; objectKey: string }) {
+  if (media.objectKey.includes('/chapter-56-group-sharing-')) return '成员结缘分享';
+  if (media.objectKey.includes('/chapter-56-chanqiao-lecture-')) return '禅桥老师演讲';
+  return media.mime.startsWith('image/') ? '分享图片' : '分享音频';
+}
 export function shareDto(row: any, user: User | null, liked = false) {
-  return { id: row.id, chapter: row.chapterNumber, title: row.title, body: row.body, contentType: row.contentType || 'FIELD_NOTE', anonymous: row.anonymous, name: row.anonymous ? '一位共读者' : row.publicName, avatar: row.anonymous ? 0 : row.publicAvatar, createdAt: row.createdAt, updatedAt: row.updatedAt, views: row.viewsCount, likes: row._count?.likes || 0, comments: row._count?.comments || 0, liked, owned: !!user && (row.authorId === user.id || user.role === 'ADMIN'), status: row.status, sourceUrl: row.importData ? null : row.sourceUrl, importData: row.importData || null, gatheringId: row.gatheringId, placeName: (row.dojo?.status === 'PUBLISHED' ? row.dojo.name : null) || (row.gathering?.status === 'PUBLISHED' ? (row.gathering.dojo?.status === 'PUBLISHED' ? row.gathering.dojo.name : row.gathering.temporaryPlace?.name) : null) || null, media: (row.media || []).map((m: any) => ({ id: m.id, mime: m.mime, name: m.mime.startsWith('image/') ? '分享图片' : '分享音频' })) };
+  return { id: row.id, chapter: row.chapterNumber, title: row.title, body: row.body, contentType: row.contentType || 'FIELD_NOTE', anonymous: row.anonymous, name: row.anonymous ? '一位共读者' : row.publicName, avatar: row.anonymous ? 0 : row.publicAvatar, createdAt: row.createdAt, updatedAt: row.updatedAt, views: row.viewsCount, likes: row._count?.likes || 0, comments: row._count?.comments || 0, liked, owned: !!user && (row.authorId === user.id || user.role === 'ADMIN'), status: row.status, sourceUrl: row.importData ? null : row.sourceUrl, importData: row.importData || null, gatheringId: row.gatheringId, placeName: (row.dojo?.status === 'PUBLISHED' ? row.dojo.name : null) || (row.gathering?.status === 'PUBLISHED' ? (row.gathering.dojo?.status === 'PUBLISHED' ? row.gathering.dojo.name : row.gathering.temporaryPlace?.name) : null) || null, media: (row.media || []).map((m: any) => ({ id: m.id, mime: m.mime, name: mediaName(m) })) };
 }
 async function readable(db: Db, id: string, user: User | null, publicOnly = false) {
   const row = await db.contentItem.findUnique({ where: { id }, include: shareInclude });
@@ -39,7 +45,7 @@ function checkReadTicket(ticket: string, id: string, visitor: string, now: Date)
 export async function getShare(db: PrismaClient, id: string, user: User | null, visitor: string, now: Date) {
   const row = await readable(db, id, user);
   const like = user ? await db.contentLike.findUnique({ where: { contentId_accountId: { contentId: id, accountId: user.id } } }) : null;
-  return { ...shareDto(row, user, !!like), readTicket: row.status === 'PUBLISHED' ? readTicket(id, visitor, now) : null };
+  return { ...shareDto(row, user, !!like), presentationUrl: presentationUrl(row), readTicket: row.status === 'PUBLISHED' ? readTicket(id, visitor, now) : null };
 }
 const editorialDocument = z.object({ title: z.string().min(1).max(120), summary: z.string().max(1800), sections: z.array(z.object({ title: z.string().min(1).max(120), paragraphs: z.array(z.string().min(1).max(4000)).min(1).max(30) }).strict()).min(1).max(30) }).strict();
 const shareInput = z.object({ chapter: chapterNumber, title: z.string().trim().max(120).default(''), body: cleanText(12000), contentType: z.enum(['FIELD_NOTE', 'LEAD_READING']).default('FIELD_NOTE'), importData: editorialDocument.optional(), anonymous: z.boolean().default(false), publicName: z.string().trim().max(80).optional(), sourceUrl: safeUrl.default(''), gatheringId: z.string().max(100).nullable().optional(), dojoId: z.string().max(100).nullable().optional(), mediaIds: z.array(z.string().max(100)).max(6).default([]), acknowledge: z.literal(true, { errorMap: () => ({ message: '请确认公开范围与媒体告知' }) }) }).strict().refine(data => data.contentType !== 'LEAD_READING' || !!data.importData, { message: '领读类分享需要提供结构化正文' }).refine(data => data.contentType !== 'FIELD_NOTE' || !data.importData, { message: '现场记录分享不能设置领读类正文' });

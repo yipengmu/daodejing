@@ -2,6 +2,20 @@ import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import YAML from 'yaml';
 
+test('游客从第57章频道打开完整领读，使用原长页目录', async ({ page }) => {
+  await page.goto('/chapters/57');
+  await page.getByRole('link', { name: '真实', exact: true }).click();
+  const open = page.getByRole('link', { name: '打开完整领读' });
+  await expect(open).toBeVisible();
+  await open.click();
+  await expect(page.getByRole('heading', { name: '真实', level: 1 })).toBeVisible();
+  await expect.poll(() => page.locator('.cover img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+  await page.getByRole('button', { name: '目录' }).click();
+  await page.getByRole('dialog').getByRole('link', { name: '实与虚、空' }).click();
+  await expect(page).toHaveURL(/\/presentation\/index\.html#page-08$/);
+  await expect(page.locator('.substance-center strong')).toHaveText('实');
+});
+
 test('现场音频位于封面与纪要之间，按需加载且可播放定位', async ({ page }) => {
   await page.goto('/shares/browser-audio-fixture');
   const player = page.locator('.share-audio audio');
@@ -25,17 +39,36 @@ test('匿名读经：81 章目录、阅读浮层、来源和频道返回', async
   await expect(page).toHaveURL(/\/read\/30$/);
   await expect(page.getByRole('heading', { name: '以道佐人主者', exact: true })).toBeVisible();
   await expect(page.locator('.desktop-sidebar,.mobile-nav')).toHaveCount(0);
-  await page.getByRole('button', { name: '展开本章注释与分享' }).click();
-  await expect(page.getByRole('heading', { name: '当代注释', exact: true })).toBeVisible();
-  await page.getByRole('tab', { name: '本章分享', exact: true }).click();
-  await page.getByRole('link', { name: '进入本章频道' }).click();
-  await expect(page).toHaveURL(/\/chapters\/30$/);
-  await expect(page.getByRole('button', { name: '阅读较多', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '回到原文' }).click();
-  await page.getByRole('button', { name: '用户提供文本 · 版本与来源' }).click();
+  await page.getByRole('button', { name: '展开本章阅读与交流' }).click();
+  await expect(page.getByRole('tab')).toHaveText(['原文注释', '评论', '本章频道']);
+  await expect(page.getByRole('heading', { name: '白话逐句解释', exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: '评论', exact: true }).click();
+  await expect(page.getByRole('list', { name: '本章评论' })).toBeAttached();
+  await page.getByRole('tab', { name: '本章频道', exact: true }).click();
+  await expect(page).toHaveURL(/\/read\/30$/);
+  await expect(page.getByRole('region', { name: '共读分享' }).getByRole('button', { name: '阅读较多', exact: true })).toBeVisible();
+  await expect(page.getByRole('list', { name: '本章评论' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: '进入本章频道' })).toHaveCount(0);
+  await page.getByRole('button', { name: '收起本章阅读与交流' }).click();
+  await page.getByRole('button', { name: '更多阅读选项' }).click();
+  await page.getByRole('button', { name: '版本与来源', exact: true }).click();
   await expect(page.getByRole('dialog', { name: '版本与来源' })).toContainText('尚未完成逐字校勘');
   await page.getByRole('button', { name: '关闭', exact: true }).click();
   await expect(page.locator('.reader-viewport')).toBeVisible();
+
+  await page.goto('/read/57');
+  await page.getByRole('button', { name: '展开本章阅读与交流' }).click();
+  const channel = page.getByRole('tab', { name: '本章频道' });
+  await channel.click();
+  await page.getByRole('link', { name: '真实', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '真实', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '返回本章', exact: true }).click();
+  await expect(page).toHaveURL(/\/read\/57\?panel=channel$/);
+  await expect(channel).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('link', { name: '真实', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: '导入记录' }).click();
+  await page.getByRole('button', { name: '回到本章频道' }).click();
+  await expect(channel).toHaveAttribute('aria-selected', 'true');
   expect(errors).toEqual([]);
 });
 
@@ -49,7 +82,7 @@ test('窄屏大字号分页完整保留原文，章边界不循环，进度可�
   const data = YAML.parse(await readFile('prisma/seed/daodejing.yaml', 'utf8'));
   let read = '';
   for (let index = 0; index < 30; index++) {
-    read += await page.locator('.scripture:not(.measure)').innerText();
+    read += await page.locator('.scripture:not(.measure)').textContent();
     const next = page.getByRole('button', { name: '下一页', exact: true });
     if (!(await next.count())) break;
     await next.click();
@@ -74,7 +107,7 @@ test('登录回跳、匿名发布、爱心、评论和隐藏的完整路径', as
   await page.goto('/chapters/1');
   await page.getByRole('link', { name: '写下体会' }).click();
   await expect(page).toHaveURL(/\/auth\?next=/);
-  await page.getByLabel('手机号或邮箱', { exact: true }).fill('browser@example.test');
+  await page.getByLabel('账号', { exact: true }).fill('browser_reader');
   await page.getByLabel('密码', { exact: true }).fill('BrowserTest!2026');
   await page.getByRole('button', { name: '登录，继续刚才的事' }).click();
   await expect(page).toHaveURL(/\/compose\?chapter=1$/);
@@ -101,7 +134,7 @@ test('登录回跳、匿名发布、爱心、评论和隐藏的完整路径', as
 
 test('无定位也能保存单章节共读，公开唯一领读人和服务端时间', async ({ page }) => {
   await page.goto('/gatherings/new');
-  await page.getByLabel('手机号或邮箱', { exact: true }).fill('browser@example.test'); await page.getByLabel('密码', { exact: true }).fill('BrowserTest!2026'); await page.getByRole('button', { name: '登录，继续刚才的事' }).click();
+  await page.getByLabel('账号', { exact: true }).fill('browser_reader'); await page.getByLabel('密码', { exact: true }).fill('BrowserTest!2026'); await page.getByRole('button', { name: '登录，继续刚才的事' }).click();
   await expect(page.getByRole('heading', { name: '记录一次共读' })).toBeVisible();
   await page.getByLabel('共读章节', { exact: true }).selectOption('8');
   await page.getByRole('textbox', { name: /本场唯一领读人/ }).fill('测试领读人');

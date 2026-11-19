@@ -1,7 +1,7 @@
 {
   "buildCommand": "npm run build:vercel",
   "outputDirectory": "dist",
-  "functions": { "api/index.ts": { "maxDuration": 30 } },
+  "functions": { "api/index.ts": { "maxDuration": 30, "includeFiles": "sites/chapter-57-reading/dist/**" } },
   "rewrites": [
     { "source": "/api/:path+", "destination": "/api?path=:path" },
     { "source": "/((?!api(?:/|$)).*)", "destination": "/index.html" }

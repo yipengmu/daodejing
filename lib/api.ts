@@ -13,6 +13,8 @@ import { createGathering, getGathering, listGatherings, updateGathering } from '
 import { createAgentImport, withdrawAgentImport, type ImportDocument } from './agent-import';
 import { beginUpload, localUpload, completeUpload, serveMedia } from './media';
 import { chapterHeat, issueChapterReadTicket, recordChapterRead } from './chapter-heat';
+import { changeAnnotation, myAnnotations, publicAnnotations } from './reading-annotations';
+import { serveLeadPresentation } from './lead-presentation';
 
 export function createApi(options: { db: PrismaClient; verification?: VerificationProvider; clock?: () => Date; prepareImport?: (text: string, url: string) => Promise<ImportDocument> }) {
   const db = options.db; const providers = options.verification || cloudVerification;
@@ -38,11 +40,14 @@ export function createApi(options: { db: PrismaClient; verification?: Verificati
       const user = await session(request, db);
       let response: Response;
       const shareMatch = /^\/shares\/([^/]+)(?:\/(view|exposure|like|comments))?$/.exec(path);
+      const leadPresentationMatch = /^\/shares\/([^/]+)\/presentation\/([^/]+)$/.exec(path);
       const placeMatch = /^\/places\/([^/]+)$/.exec(path);
       const gatheringMatch = /^\/gatherings\/([^/]+)$/.exec(path);
       const mediaMatch = /^\/media\/([^/]+)(?:\/(upload|complete))?$/.exec(path);
       const commentMatch = /^\/comments\/([^/]+)$/.exec(path);
       const chapterReadMatch = /^\/chapters\/(\d+)\/(read-ticket|read)$/.exec(path);
+      const chapterAnnotationsMatch = /^\/chapters\/(\d+)\/annotations$/.exec(path);
+      const annotationMatch = /^\/me\/annotations\/([^/]+)$/.exec(path);
 
       if (path.startsWith('/auth/')) response = await authHandler(path.slice(6), request, db, providers, user, ip, now);
       else if (path === '/config' && method === 'GET') response = json({ amapKey: process.env.AMAP_WEB_KEY || null, mapSearch: !!process.env.AMAP_REST_KEY, sms: !!process.env.ALIBABA_PNVS_TEMPLATE_CODE && !!process.env.ALIBABA_CLOUD_ACCESS_KEY_ID, email: !!process.env.TENCENT_SES_TEMPLATE_ID && !!process.env.TENCENTCLOUD_SECRET_ID });
@@ -50,7 +55,14 @@ export function createApi(options: { db: PrismaClient; verification?: Verificati
       else if (/^\/agent-imports\/[^/]+\/withdraw$/.test(path) && method === 'POST') response = await withdrawAgentImport(request, db, path.split('/')[2], user);
       else if (path === '/shares' && method === 'GET') response = json(await listShares(db, user, url.searchParams));
       else if (path === '/shares' && method === 'POST') response = await createShare(request, db, user, now);
+      else if (leadPresentationMatch) {
+        if (method !== 'GET' && method !== 'HEAD') throw new ApiError(405, '请求方式不受支持');
+        response = await serveLeadPresentation(request, db, leadPresentationMatch[1], leadPresentationMatch[2]);
+      }
       else if (path === '/chapter-heat' && method === 'GET') { await rateLimit(db, 'chapter-heat', visitor, 300, 3600, now); response = await chapterHeat(db); }
+      else if (chapterAnnotationsMatch && method === 'GET') response = await publicAnnotations(db, chapterAnnotationsMatch[1], url.searchParams, user);
+      else if (path === '/me/annotations' && ['GET', 'POST'].includes(method)) response = await myAnnotations(request, db, user, now);
+      else if (annotationMatch && method === 'PATCH') response = await changeAnnotation(request, db, user, annotationMatch[1], now);
       else if (chapterReadMatch) {
         const chapter = chapterNumber.parse(chapterReadMatch[1]); const action = chapterReadMatch[2];
         if (action === 'read-ticket' && method === 'GET') { await rateLimit(db, 'chapter-read-ticket', visitor, 300, 3600, now); response = await issueChapterReadTicket(db, chapter, visitor, now); }

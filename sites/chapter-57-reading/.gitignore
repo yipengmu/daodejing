@@ -1,0 +1,2 @@
+# This buildless site keeps its deployable HTML, CSS, and JS in source control.
+!/dist/

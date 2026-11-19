@@ -11,6 +11,7 @@ process.env.LOCAL_MEDIA_DIR = path.join(directory, 'media');
 const { createLocalDatabase } = await import('../lib/local-db'); const { createApi } = await import('../lib/api'); const { adaptNode } = await import('../lib/transport'); const { seed } = await import('../scripts/seed'); const { hashPassword, digest } = await import('@daodejing/auth-kit');
 const database = await createLocalDatabase(directory); await seed(database.client);
 const reader = await database.client.account.create({ data: { passwordHash: await hashPassword('BrowserTest!2026'), profile: { create: { displayName: '浏览器测试读者', avatar: 2 } }, identities: { create: { kind: 'EMAIL', value: 'browser@example.test', lookupHash: digest(process.env.IDENTITY_HMAC_SECRET!, 'EMAIL:browser@example.test') } } } });
+await database.client.authIdentity.create({ data: { accountId: reader.id, kind: 'USERNAME', value: 'browser_reader', lookupHash: digest(process.env.IDENTITY_HMAC_SECRET!, 'USERNAME:browser_reader') } });
 // Only this disposable database contains generated media; never attach fixtures to real shares.
 const { writeObject } = await import('../lib/providers/storage');
 const { default: sharp } = await import('sharp');
