@@ -6,7 +6,9 @@ import { chapterNumber, cleanText, input, json, safeUrl, pageNumber } from './ht
 import { requireOwner, requireUser, type User } from './auth';
 import { audit, idempotent, rateLimit, shanghaiDay, type Db } from './persistence';
 import { presentationUrl } from './lead-presentation';
+import { shareAudioCues } from './share-audio-cues';
 import { editorialDocument, illustrationIds } from '../shared/editorial-document';
+import type { AudioCue } from '../shared/audio-cues';
 
 const shareInclude = { _count: { select: { likes: true, comments: { where: { status: 'PUBLISHED' } } } }, media: { where: { status: 'READY' }, orderBy: { createdAt: 'asc' } }, dojo: true, gathering: { include: { dojo: true, temporaryPlace: true } } } as const;
 function mediaName(media: { mime: string; objectKey: string }) {
@@ -46,14 +48,21 @@ function checkReadTicket(ticket: string, id: string, visitor: string, now: Date)
 export async function getShare(db: PrismaClient, id: string, user: User | null, visitor: string, now: Date) {
   const row = await readable(db, id, user);
   const like = user ? await db.contentLike.findUnique({ where: { contentId_accountId: { contentId: id, accountId: user.id } } }) : null;
-  return { ...shareDto(row, user, !!like), presentationUrl: presentationUrl(row), readTicket: row.status === 'PUBLISHED' ? readTicket(id, visitor, now) : null };
+  const audioCues: Record<string, readonly AudioCue[]> = {};
+  if (row.status === 'PUBLISHED') {
+    for (const media of row.media) {
+      const cues = shareAudioCues.get(media.id);
+      if (cues && media.mime.startsWith('audio/')) audioCues[media.id] = cues;
+    }
+  }
+  return { ...shareDto(row, user, !!like), audioCues, presentationUrl: presentationUrl(row), readTicket: row.status === 'PUBLISHED' ? readTicket(id, visitor, now) : null };
 }
 const shareInput = z.object({ chapter: chapterNumber, title: z.string().trim().max(120).default(''), body: cleanText(12000), contentType: z.enum(['FIELD_NOTE', 'LEAD_READING']).default('FIELD_NOTE'), importData: editorialDocument.optional(), anonymous: z.boolean().default(false), publicName: z.string().trim().max(80).optional(), sourceUrl: safeUrl.default(''), gatheringId: z.string().max(100).nullable().optional(), dojoId: z.string().max(100).nullable().optional(), mediaIds: z.array(z.string().max(100)).max(6).default([]), acknowledge: z.literal(true, { errorMap: () => ({ message: '请确认公开范围与媒体告知' }) }) }).strict().refine(data => data.contentType !== 'LEAD_READING' || !!data.importData, { message: '领读类分享需要提供结构化正文' }).refine(data => data.contentType !== 'FIELD_NOTE' || !data.importData, { message: '现场记录分享不能设置领读类正文' });
 export async function createShare(request: Request, db: PrismaClient, user: User | null, now: Date) {
   const current = requireUser(user); const data = await input(request, shareInput);
   if (data.contentType === 'LEAD_READING' && current.role !== 'ADMIN') throw new ApiError(403, '只有内容管理员可以发布领读类分享');
   const inlineImages = illustrationIds(data.importData);
-  if (inlineImages.some(id => !data.mediaIds.includes(id))) throw new ApiError(400, '分节插图必须包含在本次上传的附件中');
+  if (inlineImages.some(id => !data.mediaIds.includes(id))) throw new ApiError(400, '领读照片与分节插图必须包含在本次上传的附件中');
   await rateLimit(db, 'share-create', current.id, 15, 3600, now);
   const result = await idempotent(db, request, current.id, data, async tx => {
     if (data.gatheringId) {
@@ -69,7 +78,7 @@ export async function createShare(request: Request, db: PrismaClient, user: User
       if (media.count !== ids.length) throw new ApiError(400, '附件不可用、尚未完成上传或已用于其他分享');
       if (inlineImages.length) {
         const imageCount = await tx.mediaAsset.count({ where: { id: { in: inlineImages }, contentId: row.id, mime: { startsWith: 'image/' } } });
-        if (imageCount !== inlineImages.length) throw new ApiError(400, '分节插图必须是图片附件');
+        if (imageCount !== inlineImages.length) throw new ApiError(400, '领读照片与分节插图必须是图片附件');
       }
     }
     await audit(tx, current.id, 'SHARE_PUBLISHED', row.id, { acknowledgementVersion: 'publication-v1' });

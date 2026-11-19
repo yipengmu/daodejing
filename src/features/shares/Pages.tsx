@@ -7,6 +7,7 @@ import { Back, PageHead, ShareRow, Status } from '../../components/Shared';
 import { useResource } from '../../hooks';
 import { api, patch, post, formatDate } from '../../services/api';
 import type { Comment, Gathering, ImportDocument, Place, Share } from '../../types';
+import type { AudioCue } from '../../../shared/audio-cues';
 import chapterIndex from '../../data/chapter-index.json';
 import { RequireLogin } from '../account/Pages';
 import { sessionState } from '../../services/storage';
@@ -56,7 +57,8 @@ export function Channel({ embedded = false, chapterNumber }: { embedded?: boolea
 }
 export function ShareDetail() {
   const { id = '' } = useParams(); const { user } = useSession(); const navigate = useNavigate(); const location = useLocation();
-  const resource = useResource<Share & { readTicket: string | null; presentationUrl: string | null }>(`/shares/${id}`);
+  const resource = useResource<Share & { readTicket: string | null; presentationUrl: string | null; audioCues?: Record<string, readonly AudioCue[]> }>(`/shares/${id}`);
+  const [activeAudio, setActiveAudio] = useState<string>();
   const [commentPage, setCommentPage] = useState(0); const [withdrawn, setWithdrawn] = useState(false);
   const commentResource = useResource<{ comments: Comment[]; hasMore: boolean }>(resource.data?.status === 'PUBLISHED' && (resource.data.comments > 0 || commentPage > 0) ? `/shares/${id}/comments?page=${commentPage}` : null);
   const [comment, setComment] = useState(() => sessionState.getItem(`ddj-draft-comment-${id}`) || ''); const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [editing, setEditing] = useState(false); const [title, setTitle] = useState(''); const [body, setBody] = useState('');
@@ -65,8 +67,15 @@ export function ShareDetail() {
   const share = resource.data;
   const channelPath = (location.state as { returnTo?: string } | null)?.returnTo ?? (share ? chapterChannelPath(share.chapter, false) : '/');
   const publishedImages = share?.status === 'PUBLISHED' ? share.media.filter(media => media.mime.startsWith('image/')) : [];
-  const sectionImages = new Set(share?.importData?.sections.map(section => section.illustration?.mediaId));
-  const coverImage = share?.importData ? publishedImages.find(media => !sectionImages.has(media.id)) : undefined;
+  const coverPhotos = share?.importData?.coverPhotos ?? [];
+  const placedImages = new Set([
+    ...coverPhotos.map(photo => photo.mediaId),
+    ...(share?.importData?.sections.map(section => section.illustration?.mediaId) ?? []),
+  ]);
+  const visibleCoverPhotos = coverPhotos.filter(photo => publishedImages.some(media => media.id === photo.mediaId));
+  const coverImage = share?.importData && !visibleCoverPhotos.length
+    ? publishedImages.find(media => !placedImages.has(media.id))
+    : undefined;
   const audioMedia = share?.status === 'PUBLISHED' ? share.media.filter(media => media.mime.startsWith('audio/')) : [];
   useEffect(() => { if (share) { setTitle(share.title); setBody(share.body); } }, [share?.id, share?.updatedAt]);
   useEffect(() => {
@@ -88,8 +97,14 @@ export function ShareDetail() {
   if (withdrawn) return <div className="page-width article-page"><Back to={channelPath} label="返回频道"/><h1>分享已撤回</h1><p>这份记录已停止公开。</p></div>;
   return <div className="page-width article-page"><Back to={channelPath} label="返回本章"/><Status loading={resource.loading} error={resource.error} retry={resource.refresh}>{share && <><Link className="eyebrow text-link" to={channelPath}>第 {share.chapter} 章 · 本章分享</Link><h1 className="article-title">{share.title || '读到这里的体会'}</h1><div className="byline"><Avatar preset={share.avatar} anonymous={share.anonymous}/><div><span>{share.contentType === 'LEAD_READING' ? '平台领读' : share.contentType === 'AGENT_NOTES' ? '共读助手' : share.name}</span><small>{share.contentType === 'LEAD_READING' ? '领读类分享 · ' : share.contentType === 'AGENT_NOTES' ? '共读纪要 · ' : ''}{formatDate(share.createdAt)}</small></div><span className="badge">{share.contentType === 'LEAD_READING' ? '领读分享' : share.contentType === 'AGENT_NOTES' ? '共读纪要' : share.status === 'PUBLISHED' ? '现场记录' : '已隐藏'}</span></div>
     {share.presentationUrl && <div className="action-row"><a className="button primary" href={share.presentationUrl}><BookOpen size={17}/>打开完整领读</a></div>}
-    {coverImage && <figure className="share-cover"><img src={`/api/media/${coverImage.id}`} alt={`${share.title || '共读分享'} · 分享图片`} fetchPriority="high"/></figure>}{audioMedia.map((media, index) => <ShareAudio key={media.id} id={media.id} title={share.title || '共读分享'} index={index} count={audioMedia.length} name={media.name}/>)}{editing ? <form onSubmit={saveEdit}><label>标题<input maxLength={120} value={title} onChange={e => setTitle(e.target.value)}/></label><label>正文<textarea aria-label="正文" rows={10} required maxLength={12000} value={body} onChange={e => setBody(e.target.value)}/></label><div className="action-row"><button className="button primary" disabled={busy}>保存</button><button type="button" className="text-button" onClick={() => setEditing(false)}>取消</button></div></form> : share.importData ? <StructuredReading document={share.importData} availableImages={publishedImages.map(media => media.id)} kind={share.contentType === 'LEAD_READING' ? 'lead-reading' : share.contentType === 'AGENT_NOTES' ? 'agent-notes' : 'session'}/> : <div className="article-body">{share.body}</div>}
-    {share.status === 'PUBLISHED' && <div className="media-gallery">{share.media.filter(media => media.id !== coverImage?.id && !sectionImages.has(media.id) && !media.mime.startsWith('audio/')).map((media, index) => media.mime.startsWith('image/') ? <img key={media.id} src={`/api/media/${media.id}`} alt={`分享附图 ${index + 1}`} loading="lazy"/> : <audio key={media.id} controls preload="none" src={`/api/media/${media.id}`}>你的浏览器暂不支持音频播放。</audio>)}</div>}
+    {visibleCoverPhotos.length > 0 && <div className="share-photo-pair" role="group" aria-label="共读现场照片">
+      {visibleCoverPhotos.map((photo, index) => <figure key={photo.mediaId}>
+        <img src={`/api/media/${encodeURIComponent(photo.mediaId)}`} alt={photo.alt} fetchPriority={index === 0 ? 'high' : 'auto'} decoding="async"/>
+        <figcaption>{photo.caption}</figcaption>
+      </figure>)}
+    </div>}
+    {coverImage && <figure className="share-cover"><img src={`/api/media/${coverImage.id}`} alt={`${share.title || '共读分享'} · 分享图片`} fetchPriority="high"/></figure>}{audioMedia.map((media, index) => <ShareAudio key={media.id} id={media.id} title={share.title || '共读分享'} index={index} count={audioMedia.length} name={media.name} cues={share.audioCues?.[media.id]} active={activeAudio === media.id} onPlay={setActiveAudio}/>)}{editing ? <form onSubmit={saveEdit}><label>标题<input maxLength={120} value={title} onChange={e => setTitle(e.target.value)}/></label><label>正文<textarea aria-label="正文" rows={10} required maxLength={12000} value={body} onChange={e => setBody(e.target.value)}/></label><div className="action-row"><button className="button primary" disabled={busy}>保存</button><button type="button" className="text-button" onClick={() => setEditing(false)}>取消</button></div></form> : share.importData ? <StructuredReading document={share.importData} availableImages={publishedImages.map(media => media.id)} kind={share.contentType === 'LEAD_READING' ? 'lead-reading' : share.contentType === 'AGENT_NOTES' ? 'agent-notes' : 'session'}/> : <div className="article-body">{share.body}</div>}
+    {share.status === 'PUBLISHED' && <div className="media-gallery">{share.media.filter(media => media.id !== coverImage?.id && !placedImages.has(media.id) && !media.mime.startsWith('audio/')).map((media, index) => media.mime.startsWith('image/') ? <img key={media.id} src={`/api/media/${media.id}`} alt={`分享附图 ${index + 1}`} loading="lazy"/> : <audio key={media.id} controls preload="none" src={`/api/media/${media.id}`}>你的浏览器暂不支持音频播放。</audio>)}</div>}
     {share.sourceUrl && <a className="source-link" href={share.sourceUrl} target="_blank" rel="noopener noreferrer">作者提供的外部来源 <ArrowRight size={15}/></a>}{share.gatheringId && <Link className="source-link" to={`/gatherings/${share.gatheringId}`}>关联的共读记录 <ArrowRight size={15}/></Link>}
     <div className="article-actions"><span>有效阅读 {share.views}</span><button className={`button ${share.liked ? 'liked' : 'secondary'}`} aria-pressed={!!share.liked} disabled={busy || share.status !== 'PUBLISHED'} onClick={like}><Heart size={17} fill={share.liked ? 'currentColor' : 'none'}/>爱心 {share.likes}</button><span><MessageCircle size={16}/>{share.comments}</span></div>
     {share.importData && localStorage.getItem(`ddj-agent-share-${id}`) && <div className="owner-actions"><button className="text-button danger" disabled={busy} onClick={withdrawImport}>撤回这份分享</button></div>}
