@@ -25,14 +25,15 @@ test('匿名读经：81 章目录、阅读浮层、来源和频道返回', async
   await expect(page).toHaveURL(/\/read\/30$/);
   await expect(page.getByRole('heading', { name: '以道佐人主者', exact: true })).toBeVisible();
   await expect(page.locator('.desktop-sidebar,.mobile-nav')).toHaveCount(0);
-  await page.getByRole('button', { name: '展开本章注释与分享' }).click();
-  await expect(page.getByRole('heading', { name: '当代注释', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '展开注释与分享' }).click();
+  await expect(page.getByRole('heading', { name: '白话逐句解释', exact: true })).toBeVisible();
   await page.getByRole('tab', { name: '本章分享', exact: true }).click();
   await page.getByRole('link', { name: '进入本章频道' }).click();
   await expect(page).toHaveURL(/\/chapters\/30$/);
   await expect(page.getByRole('button', { name: '阅读较多', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '回到原文' }).click();
-  await page.getByRole('button', { name: '用户提供文本 · 版本与来源' }).click();
+  await page.getByRole('button', { name: '更多阅读选项' }).click();
+  await page.getByRole('button', { name: '版本与来源', exact: true }).click();
   await expect(page.getByRole('dialog', { name: '版本与来源' })).toContainText('尚未完成逐字校勘');
   await page.getByRole('button', { name: '关闭', exact: true }).click();
   await expect(page.locator('.reader-viewport')).toBeVisible();
@@ -49,7 +50,7 @@ test('窄屏大字号分页完整保留原文，章边界不循环，进度可�
   const data = YAML.parse(await readFile('prisma/seed/daodejing.yaml', 'utf8'));
   let read = '';
   for (let index = 0; index < 30; index++) {
-    read += await page.locator('.scripture:not(.measure)').innerText();
+    read += await page.locator('.scripture:not(.measure)').textContent();
     const next = page.getByRole('button', { name: '下一页', exact: true });
     if (!(await next.count())) break;
     await next.click();
@@ -74,7 +75,7 @@ test('登录回跳、匿名发布、爱心、评论和隐藏的完整路径', as
   await page.goto('/chapters/1');
   await page.getByRole('link', { name: '写下体会' }).click();
   await expect(page).toHaveURL(/\/auth\?next=/);
-  await page.getByLabel('手机号或邮箱', { exact: true }).fill('browser@example.test');
+  await page.getByLabel('账号', { exact: true }).fill('browser_reader');
   await page.getByLabel('密码', { exact: true }).fill('BrowserTest!2026');
   await page.getByRole('button', { name: '登录，继续刚才的事' }).click();
   await expect(page).toHaveURL(/\/compose\?chapter=1$/);
@@ -101,7 +102,7 @@ test('登录回跳、匿名发布、爱心、评论和隐藏的完整路径', as
 
 test('无定位也能保存单章节共读，公开唯一领读人和服务端时间', async ({ page }) => {
   await page.goto('/gatherings/new');
-  await page.getByLabel('手机号或邮箱', { exact: true }).fill('browser@example.test'); await page.getByLabel('密码', { exact: true }).fill('BrowserTest!2026'); await page.getByRole('button', { name: '登录，继续刚才的事' }).click();
+  await page.getByLabel('账号', { exact: true }).fill('browser_reader'); await page.getByLabel('密码', { exact: true }).fill('BrowserTest!2026'); await page.getByRole('button', { name: '登录，继续刚才的事' }).click();
   await expect(page.getByRole('heading', { name: '记录一次共读' })).toBeVisible();
   await page.getByLabel('共读章节', { exact: true }).selectOption('8');
   await page.getByRole('textbox', { name: /本场唯一领读人/ }).fill('测试领读人');

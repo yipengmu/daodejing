@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { BookOpen, Compass, UserRound, ArrowUpRight } from 'lucide-react';
 import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { api } from '../services/api';
+import { useAnnotationSync } from '../services/readingAnnotations';
 import type { Profile } from '../types';
 import { SessionContext } from './context';
 const Library = lazy(() => import('../features/reading/Library'));
@@ -28,6 +29,7 @@ const Feedback = lazy(() => accountPages().then(module => ({ default: module.Fee
 
 export default function App() {
   const [user, setUser] = useState<Profile | null>(null); const [loading, setLoading] = useState(true);
+  useAnnotationSync(user?.id);
   const location = useLocation(); const reading = /^\/read\//.test(location.pathname);
   async function reload() { try { const result = await api<{ user: Profile | null }>('/auth/me'); setUser(result.user); } catch { setUser(null); } finally { setLoading(false); } }
   useEffect(() => { void reload(); }, []);

@@ -26,6 +26,7 @@ model Account {
   ledGatherings         GatheringSubmission[] @relation("LeadReader")
   media                 MediaAsset[]
   feedback              Feedback[]
+  readingAnnotations    ReadingAnnotation[]
 }
 
 model Profile {
@@ -101,8 +102,31 @@ model ChapterText {
   source        Json
   chapter       Chapter @relation(fields: [chapterNumber], references: [number], onDelete: Restrict)
   edition       Edition @relation(fields: [editionId], references: [id], onDelete: Restrict)
+  annotations   ReadingAnnotation[]
   @@id([chapterNumber, editionId])
   @@index([editionId])
+}
+
+model ReadingAnnotation {
+  accountId     String
+  id            String      @db.Uuid
+  chapterNumber Int
+  editionId     String
+  start         Int
+  end           Int
+  quote         String
+  body          String      @default("")
+  published     Boolean     @default(false)
+  deleted       Boolean     @default(false)
+  version       Int         @default(1)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  account       Account     @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  chapterText   ChapterText @relation(fields: [chapterNumber, editionId], references: [chapterNumber, editionId], onDelete: Restrict)
+
+  @@id([accountId, id])
+  @@index([accountId, chapterNumber, editionId, deleted])
+  @@index([chapterNumber, editionId, published, updatedAt])
 }
 
 model ChapterChannel {

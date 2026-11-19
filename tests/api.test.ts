@@ -11,6 +11,7 @@ import type { VerificationProvider } from '../lib/providers/verification';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { StructuredReading } from '../src/features/shares/StructuredReading';
+import { digest, hashPassword } from '@daodejing/auth-kit';
 
 test('共读纪要的有限排版保留旧段落，并将来源 HTML 与链接作为文字', () => {
   const html = renderToStaticMarkup(createElement(StructuredReading, { document: {
@@ -56,8 +57,9 @@ test('MVP-1 PostgreSQL 持久化与共享 API 场景', async t => {
     }
   }
   async function register(identifier: string, name: string) {
-    const client = new Client(); const sent = await client.call('/auth/send-code', 'POST', { identifier, purpose: 'REGISTER' }); assert.equal(sent.status, 200, JSON.stringify(sent.error));
-    const result = await client.call('/auth/register', 'POST', { identifier, name, password: 'ReadTogether!2026', code: identifier.includes('@') ? emailCodes.get(identifier) : '654321', challengeId: sent.data.challengeId }); assert.equal(result.status, 200, JSON.stringify(result.error));
+    const client = new Client();
+    const result = await client.call('/auth/register', 'POST', { identifier, name, password: 'ReadTogether!2026' });
+    assert.equal(result.status, 200, JSON.stringify(result.error));
     return { client, user: result.data.user, identifier };
   }
   const guest = new Client();
@@ -107,17 +109,54 @@ test('MVP-1 PostgreSQL 持久化与共享 API 场景', async t => {
       const live = createApi({ db }); const result = await live(new Request('http://localhost/api/auth/send-code', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier: 'not-configured@example.test', purpose: 'REGISTER' }) }));
       assert.equal(result.status, 503); assert.equal(await db.verification.count({ where: { provider: 'DEV' } }), 0);
     });
-    await t.test('注册、登录、一次性验证码和公开资料边界', async () => {
-      author = await register('author@example.test', '作者甲'); other = await register('other@example.test', '读者乙'); admin = await register('admin@example.test', '维护者');
+    await t.test('用户名注册、登录和公开资料边界', async () => {
+      author = await register('test_author', '作者甲'); other = await register('test_reader', '读者乙'); admin = await register('test_admin', '维护者');
       await db.account.update({ where: { id: admin.user.id }, data: { role: 'ADMIN' } });
       const me = await author.client.call('/auth/me'); assert.equal(me.data.user.name, '作者甲'); assert.equal('passwordHash' in me.data.user, false);
-      const logged = new Client(); assert.equal((await logged.call('/auth/login', 'POST', { identifier: 'author@example.test', password: 'wrong-password' })).status, 401);
-      assert.equal((await logged.call('/auth/login', 'POST', { identifier: 'author@example.test', password: 'ReadTogether!2026' })).status, 200);
-      const challenge = await author.client.call('/auth/send-code', 'POST', { identifier: 'new@example.test', purpose: 'REGISTER' });
-      const payload = { identifier: 'new@example.test', name: '新读者', password: 'ReadTogether!2026', challengeId: challenge.data.challengeId, code: emailCodes.get('new@example.test') };
-      assert.equal((await author.client.call('/auth/register', 'POST', payload)).status, 200);
-      assert.equal((await author.client.call('/auth/register', 'POST', payload)).status, 400);
-      await author.client.call('/auth/login', 'POST', { identifier: author.identifier, password: 'ReadTogether!2026' });
+      const logged = new Client(); assert.equal((await logged.call('/auth/login', 'POST', { identifier: 'test_author', password: 'wrong-password' })).status, 401);
+      assert.equal((await logged.call('/auth/login', 'POST', { identifier: 'TEST_AUTHOR', password: 'ReadTogether!2026' })).status, 200);
+      const payload = { identifier: 'TEST_AUTHOR', name: '新读者', password: 'ReadTogether!2026' };
+      assert.equal((await logged.call('/auth/register', 'POST', payload)).status, 409);
+      assert.equal((await logged.call('/auth/register', 'POST', { ...payload, identifier: 'new@example.test' })).status, 400);
+    });
+    await t.test('原文标注仅同步到会话账号，重试幂等，公开与收回独立', async () => {
+      const source = await db.chapterText.findFirstOrThrow({ where: { chapterNumber: 1 } });
+      const quote = Array.from(source.text).slice(0, 3).join('');
+      const note = { id: randomUUID(), chapterNumber: 1, editionId: source.editionId, start: 0, end: 3, quote, body: '只有自己可见的批注' };
+      const chapter = `/chapters/1/annotations?edition=${source.editionId}`;
+      const mine = `/me/annotations?chapter=1&edition=${source.editionId}`;
+      const detail = `/me/annotations/${note.id}`;
+      const owner = { 'X-DDJ-Annotation-Account': author.user.id };
+      const outsider = { 'X-DDJ-Annotation-Account': other.user.id };
+      const importNote = (client: Client, headers: Record<string, string>, value = note) => client.call('/me/annotations', 'POST', { annotations: [value] }, headers);
+      assert.equal((await importNote(guest, owner)).status, 401);
+      assert.equal((await importNote(other.client, owner)).status, 409);
+      assert.equal((await importNote(author.client, owner, { ...note, end: 4 })).status, 400);
+      const imports = await Promise.all([importNote(author.client, owner), importNote(author.client, owner)]);
+      assert.deepEqual(imports.map(result => result.status), [200, 200]);
+      assert.deepEqual((await guest.call(chapter)).data.annotations, []);
+      assert.deepEqual((await other.client.call(mine, 'GET', undefined, outsider)).data.annotations, []);
+      assert.deepEqual((await author.client.call(mine, 'GET', undefined, owner)).data.annotations, [{ ...note, published: false, version: 1 }]);
+      assert.equal((await other.client.call(detail, 'PATCH', { version: 1, published: true }, outsider)).status, 404);
+      assert.equal((await admin.client.call(detail, 'PATCH', { version: 1, published: true }, { 'X-DDJ-Annotation-Account': admin.user.id })).status, 404);
+
+      const obsolete = { ...note, id: randomUUID(), quote: '旧原文' };
+      assert.equal((await importNote(author.client, owner, obsolete)).status, 200);
+      assert.equal((await author.client.call(`/me/annotations/${obsolete.id}`, 'PATCH', { version: 1, published: true }, owner)).status, 400);
+      const publicResult = await author.client.call(detail, 'PATCH', { version: 1, published: true }, owner);
+      assert.equal(publicResult.status, 200);
+      const published = (await guest.call(chapter)).data.annotations;
+      assert.deepEqual(published, [{ ...note, name: '作者甲', updatedAt: published[0].updatedAt }]);
+      const conflict = await author.client.call(detail, 'PATCH', { version: 1, body: '旧设备上的覆盖' }, owner);
+      assert.equal(conflict.error.code, 'ANNOTATION_CONFLICT');
+      assert.equal((await author.client.call(detail, 'PATCH', { version: 2, published: false }, owner)).status, 200);
+      assert.deepEqual((await guest.call(chapter)).data.annotations, []);
+      assert.equal((await author.client.call(detail, 'PATCH', { version: 3, deleted: true }, owner)).status, 200);
+      assert.equal((await importNote(author.client, owner)).status, 200);
+      assert.equal((await author.client.call(mine, 'GET', undefined, owner)).data.annotations.length, 1);
+      const removed = await db.readingAnnotation.findUniqueOrThrow({ where: { accountId_id: { accountId: author.user.id, id: note.id } } });
+      assert.equal(removed.body, '');
+      assert.equal(removed.quote, '');
     });
     await t.test('实际 Vite 代理保留同源登录，外部 Origin 写入仍被拒绝', async () => {
       const { createServer } = await import('node:http');
@@ -229,7 +268,15 @@ test('MVP-1 PostgreSQL 持久化与共享 API 场景', async t => {
       assert.equal((await other.client.call(`/places/${created.data.id}`, 'DELETE')).status, 403);
     });
     await t.test('手机号重置额度原子执行，旧 JWT 撤销，邮箱恢复需验证归属', async () => {
-      const phone = await register('13900000001', '手机读者'); now = new Date(now.getTime() + 61000);
+      const identifier = '13900000001';
+      await db.account.create({ data: {
+        passwordHash: await hashPassword('ReadTogether!2026'),
+        profile: { create: { displayName: '手机读者' } },
+        identities: { create: { kind: 'PHONE', value: identifier, lookupHash: digest(process.env.IDENTITY_HMAC_SECRET!, `PHONE:${identifier}`) } },
+      } });
+      const phone = { client: new Client(), identifier };
+      assert.equal((await phone.client.call('/auth/login', 'POST', { identifier, password: 'ReadTogether!2026' })).status, 200);
+      now = new Date(now.getTime() + 61000);
       const previousSession = new Client(); await previousSession.call('/auth/login', 'POST', { identifier: phone.identifier, password: 'ReadTogether!2026' });
       const sent = await phone.client.call('/auth/send-code', 'POST', { identifier: phone.identifier, purpose: 'RESET' }); assert.equal(sent.status, 200);
       const resetting = await Promise.all(Array.from({ length: 2 }, () => phone.client.call('/auth/reset-password', 'POST', { identifier: phone.identifier, code: '654321', challengeId: sent.data.challengeId, password: 'NewPassword!2026' })));
